@@ -1,0 +1,53 @@
+# Local working notes (all .md files except README.md are also ignored below)
+QURAN_KNOWLEDGE.md
+
+# Reference app clone (study only)
+reference/
+
+# Fonts fetched from alislam.org / Google Fonts — only the ones the app uses are tracked
+assets/fonts/*
+!assets/fonts/ManzoorNaskh.ttf
+
+.DS_Store
+node_modules/
+
+# Local browser-test output
+.playwright-mcp/
+
+# Word-alignment work files: downloaded recitation audio, caches, virtualenvs
+*.mp3
+*.wav
+tools/align/.venv/
+tools/align/venv/
+tools/align/work/
+tools/align/cache/
+__pycache__/
+*.pyc
+
+# Kept local for now: word-timing tooling (only its output, data/words/, is published)
+tools/
+
+# Documentation stays local, except the main README (data-source credits)
+*.md
+!/README.md
+
+# Credentials and local config — never committed
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa*
+id_ed25519*
+credentials*
+secrets*
+*.secret
+.npmrc
+.pypirc
+.netrc
+*.local
+.vscode/
+.idea/

@@ -1,0 +1,50 @@
+name: Publish to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Collect the site files
+        run: |
+          mkdir _site
+          if [ -f index.html ] && [ -f js/app.js ]; then
+            # The app
+            cp -r index.html manifest.webmanifest sw.js css js _site/
+            mkdir -p _site/assets/fonts
+            cp assets/fonts/*.ttf _site/assets/fonts/
+            # Name the offline cache after this commit so each deploy refreshes it.
+            sed -i "s/quran-dev/quran-${GITHUB_SHA::12}/" _site/sw.js
+            grep -q "quran-${GITHUB_SHA::12}" _site/sw.js
+          else
+            # Until the app is committed, a holding page
+            cp placeholder/index.html _site/
+          fi
+          cp -r icons _site/
+          if [ -d data ]; then cp -r data _site/; fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
