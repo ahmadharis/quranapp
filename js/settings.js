@@ -1,6 +1,6 @@
 // Settings, one page: reciter; translations (your list of shown translations — drag a grip to
 // reorder, × to remove — an "Add translation" picker, and word meanings); follow words, Nazira
-// mode, text size, appearance, install. Also the "⋯" sheet of the player: speed, reciter and
+// mode, text size, appearance, install, move to another device. Also the "⋯" sheet of the player: speed, reciter and
 // bookmark.
 
 import { RECITERS } from "./player.js";
@@ -132,6 +132,9 @@ export function initSettings(ctx) {
   const renderInstall = () => (installRow.hidden = !ctx.install?.installable());
   ctx.bus.addEventListener("installable", renderInstall);
 
+  // Move to another device: its own full-screen view (js/transfer.js).
+  const transferRow = h("button.r.nav-row.transfer-row", { type: "button", onclick: () => (sheet.close(), ctx.transfer.open()) }, h("span.nm", {}, h("b", { text: "Move to another device" })), icon("i-right", "ch"));
+
   // ---------- translations (a section of Settings) ----------
   const live = $("#live");
   // Your list: only the translations shown, in display order (drag to reorder, × to remove).
@@ -176,6 +179,7 @@ export function initSettings(ctx) {
     h("p.sec", { text: "Appearance" }),
     h("div.grpd", {}, h("div.r", {}, h("span.nm", { text: "Theme" }), themes)),
     h("div.grpd.install-grp", {}, installRow),
+    h("div.grpd.transfer-grp", {}, transferRow),
     h("p.credit", {}, "Text, translations and recitation from ", h("a", { href: "https://www.alislam.org/quran/app/", target: "_blank", rel: "noopener", text: "alislam.org" }), "."),
     h("p.version", { text: `Version ${VERSION} · build ${BUILD}` }),
   );

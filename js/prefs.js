@@ -8,6 +8,8 @@
 // Schema history:
 //   1 - every version up to 1.1.0 (no `schema` field stored).
 //   2 - 1.1.1: adds `schema`; the shape is otherwise unchanged.
+//   3 - 1.2.0: adds `lastAt` (when the last position was set; 0 = unknown), so importing from
+//       another device can keep whichever last position is newer.
 // To change the shape: bump SCHEMA and add a step to STEPS that turns the old values into the
 // new ones.
 
@@ -24,13 +26,16 @@ export const validPos = (p) =>
 
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 
-export const SCHEMA = 2;
+export const SCHEMA = 3;
 // STEPS[n] turns schema-n prefs into schema n+1, in place.
 const STEPS = {
   1: (p) => {
     // Early versions kept translations behind an on/off switch; a list saved while it was off was
     // hidden, so it stays hidden (empty) rather than appearing unasked.
     if (isObj(p.translations) && p.translations.on === false) p.translations = { on: true, list: [] };
+  },
+  2: (p) => {
+    if (!(Number.isFinite(p.lastAt) && p.lastAt >= 0)) p.lastAt = 0; // not known before 1.2.0
   },
 };
 
@@ -43,7 +48,9 @@ export function migrate(saved) {
   return p;
 }
 
-export const prefs = (() => {
+// Any stored (or imported) prefs object -> complete, valid prefs of the current schema. Used at
+// start and for imports from another device (js/transfer.js), so both get the same checks.
+export function normalizePrefs(saved) {
   const defaults = {
     reciter: DEFAULT_RECITER,
     mode: "read",
@@ -51,6 +58,7 @@ export const prefs = (() => {
     scale: 1,
     navTab: "chapters",
     last: { ch: 1, v: 1 },
+    lastAt: 0, // when `last` was set (ms); 0 = unknown
     chLast: {}, // chapter -> last verse read there, marked in the navigator's verse grid
     translations: { on: false, list: [] }, // list: shown translations, in order
     wordMeanings: "off",
@@ -64,18 +72,16 @@ export const prefs = (() => {
     speed: 1,
     followWords: true, // light each word as it is recited, where word timings exist
   };
-  let saved = {};
-  try {
-    saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {};
-  } catch {}
   const p = { ...defaults, ...migrate(saved) };
   if (!RECITERS.some((r) => r.id === p.reciter)) p.reciter = defaults.reciter;
   if (!["read", "listen"].includes(p.mode)) p.mode = defaults.mode;
   if (!validPos(p.last)) p.last = defaults.last;
+  else p.last = { ch: p.last.ch, v: p.last.v };
+  if (!(Number.isFinite(p.lastAt) && p.lastAt >= 0)) p.lastAt = 0;
+  p.chLast = isObj(p.chLast) ? { ...p.chLast } : {};
   if (!(p.scale >= 0.8 && p.scale <= 1.6)) p.scale = defaults.scale;
   if (!["auto", "light", "dark"].includes(p.theme)) p.theme = defaults.theme;
   if (!["chapters", "parts"].includes(p.navTab)) p.navTab = defaults.navTab;
-  if (!isObj(p.chLast)) p.chLast = {};
   for (const [ch, v] of Object.entries(p.chLast)) if (!validPos({ ch: Number(ch), v })) delete p.chLast[ch];
   const t = isObj(p.translations) ? p.translations : {};
   const ids = new Set(TRANSLATIONS.map((x) => x.id));
@@ -83,7 +89,7 @@ export const prefs = (() => {
   const list = Array.isArray(t.list) ? [...new Set(t.list.filter((id) => ids.has(id)))] : [];
   p.translations = { on: true, list };
   if (!WORD_MEANINGS.some((w) => w.id === p.wordMeanings)) p.wordMeanings = defaults.wordMeanings;
-  if (!isObj(p.layout)) p.layout = {};
+  p.layout = isObj(p.layout) ? { ...p.layout } : {};
   for (const g of LAYOUT_GROUPS) {
     const l = isObj(p.layout[g]) ? p.layout[g] : {};
     // Contents is open by default in Read, closed in Listen (recitation only).
@@ -92,6 +98,7 @@ export const prefs = (() => {
   }
   p.bookmarks = Array.isArray(p.bookmarks) ? p.bookmarks.filter((b) => validPos(b)).map(({ ch, v, at }) => ({ ch, v, at: Number(at) || 0 })) : [];
   if (!(validPos(p.resume) && RECITERS.some((r) => r.id === p.resume.reciter))) p.resume = null;
+  else p.resume = { ...p.resume };
   p.barCollapsed = p.barCollapsed === true;
   p.nazira = p.nazira === true;
   p.hintSeen = p.hintSeen === true;
@@ -102,6 +109,14 @@ export const prefs = (() => {
   if (!SPEEDS.includes(p.speed)) p.speed = 1;
   p.followWords = p.followWords !== false;
   return p;
+}
+
+export const prefs = (() => {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {};
+  } catch {}
+  return normalizePrefs(saved);
 })();
 
 export function savePrefs() {

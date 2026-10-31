@@ -1,7 +1,8 @@
 // An update never loses the user's settings or data.
-// 1. Preferences exactly as 1.1.0 stores them (no `schema` field), with a non-default value
-//    everywhere plus bookmarks and a resume point, are loaded by this version: every value and
-//    bookmark is unchanged, and the stored prefs gain only `schema`.
+// 1. Preferences exactly as 1.1.0 stores them (no `schema` field) and as 1.1.1 stores them
+//    (schema 2), with a non-default value everywhere plus bookmarks and a resume point, are
+//    loaded by this version: every value and bookmark is unchanged, and the stored prefs gain
+//    only the current `schema` and `lastAt` (0: not known before 1.2.0).
 // 2. A service-worker update (cache v1 -> v2, served by a small server of its own) leaves
 //    localStorage and IndexedDB intact.
 import { createServer } from "node:http";
@@ -56,16 +57,18 @@ const sameAsOld = (label, got) => {
 const b = await launch("chromium");
 try {
   // 1. Loading 1.1.0 prefs.
-  for (const viewport of [{ width: 402, height: 874 }, { width: 1920, height: 1080 }]) {
-    const ctx = await context(b, { prefs: OLD, viewport, colorScheme: "light" });
+  for (const [from, seed, viewport] of [["1.1.0", OLD, { width: 402, height: 874 }], ["1.1.1", { ...OLD, schema: 2 }, { width: 1920, height: 1080 }]]) {
+    const ctx = await context(b, { prefs: seed, viewport, colorScheme: "light" });
     const { page, errors } = await open(ctx, "");
     await page.waitForTimeout(800);
-    const label = `${viewport.width}px`;
+    const label = `from ${from} at ${viewport.width}px`;
+    const SCHEMA = await page.evaluate(async () => (await import("./js/prefs.js")).SCHEMA);
     sameAsOld(`${label} in memory`, await live(page));
     const s = await stored(page);
     sameAsOld(`${label} stored`, s);
-    t.check(s?.schema === 2, `${label}: stored schema ${s?.schema}, expected 2`);
-    const extra = Object.keys(s ?? {}).filter((k) => !(k in OLD) && k !== "schema");
+    t.check(SCHEMA >= 3 && s?.schema === SCHEMA, `${label}: stored schema ${s?.schema}, expected ${SCHEMA}`);
+    t.check(s?.lastAt === 0, `${label}: lastAt ${s?.lastAt}, expected 0`);
+    const extra = Object.keys(s ?? {}).filter((k) => !(k in OLD) && k !== "schema" && k !== "lastAt");
     t.check(!extra.length, `${label}: unexpected stored keys ${extra}`);
     const ui = await page.evaluate(() => ({
       hash: location.hash,
@@ -76,7 +79,7 @@ try {
     }));
     t.check(ui.hash === "#/18:10" && ui.theme === "dark" && ui.mode === "listen" && ui.nazira && ui.repeat === "true", `${label}: page shows ${JSON.stringify(ui)}`);
     t.check(!errors.length, `${label}: console errors ${errors.join(" | ")}`);
-    // Migrating twice changes nothing (the schema-2 prefs load as they are).
+    // Migrating twice changes nothing (current-schema prefs load as they are).
     await page.reload();
     await page.waitForSelector(".verse:not(.loading)", { state: "attached" });
     await page.waitForTimeout(600);

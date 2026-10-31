@@ -19,6 +19,7 @@ import { initNav } from "./nav.js";
 import { initPanel } from "./panel.js";
 import { initLayout } from "./layout.js";
 import { initInstall } from "./install.js";
+import { initTransfer } from "./transfer.js";
 import { initSettings, applyTheme, applyScale, applyNazira, syncRadios, arrowRadios } from "./settings.js";
 
 const root = document.documentElement;
@@ -92,6 +93,7 @@ const ctx = {
 
 function setCurrent(pos, source, moved, push = false) {
   ctx.current = { ch: pos.ch, v: pos.v };
+  if (key(pos) !== key(prefs.last)) prefs.lastAt = Date.now(); // for imports: the newer last position wins
   prefs.last = ctx.current;
   prefs.chLast[pos.ch] = pos.v;
   savePrefs();
@@ -129,6 +131,7 @@ ctx.listen = initListen(ctx);
 ctx.nav = initNav(ctx);
 ctx.install = initInstall(ctx);
 ctx.settings = initSettings(ctx);
+ctx.transfer = initTransfer(ctx);
 ctx.follower = new WordFollower(player, {
   targets: (pos) => [...ctx.reader.targets(pos), ...ctx.listen.targets(pos)],
   onTick: (info) => {
@@ -562,8 +565,13 @@ window.addEventListener("mousemove", () => root.hasAttribute("data-focus") && re
 applyTheme();
 applyScale();
 applyNazira();
+// A transfer link (#import=…) or the transfer view (#/transfer) opened directly: the address
+// becomes the position as usual (so the payload leaves it at once), then they open.
+const startHash = location.hash;
 ctx.current = { ...(parseHash() ?? prefs.last) };
 setHash(ctx.current);
+if (startHash.startsWith("#import=")) ctx.transfer.importCode(startHash.slice(8));
+else if (startHash === "#/transfer") ctx.transfer.open();
 setMode(prefs.mode);
 ctx.reader.showChapter(ctx.current.ch, ctx.current.v);
 player.cue(ctx.current);
