@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.readquran.app https://files.alislam.cloud; media-src 'self' blob: https://files.alislam.cloud; img-src 'self' data: blob:; font-src 'self' https://www.alislam.org; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Holy Quran</title>
+  <meta name="description" content="Read and listen to the Holy Quran, verse by verse, with gapless recitation.">
+  <meta name="theme-color" content="#F2F4F1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111219" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Quran">
+  <link rel="preload" href="assets/fonts/ManzoorNaskh.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/boot.js"></script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- Eight-pointed star (khatam): two overlapping squares, the figure of Quran illumination. -->
+      <symbol id="khatam" viewBox="-50 -50 100 100">
+        <path d="M0-48 L14-34 34-34 34-14 48 0 34 14 34 34 14 34 0 48 -14 34 -34 34 -34 14 -48 0 -34-14 -34-34 -14-34Z"/>
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.2" height="14" rx="1.4" fill="currentColor"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4" fill="currentColor"/></symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5v14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M18 6.2v11.6a.9.9 0 0 1-1.4.75L9 13a1.2 1.2 0 0 1 0-2l7.6-5.55A.9.9 0 0 1 18 6.2z" fill="currentColor"/></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 5v14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M6 6.2v11.6a.9.9 0 0 0 1.4.75L15 13a1.2 1.2 0 0 0 0-2L7.4 5.45A.9.9 0 0 0 6 6.2z" fill="currentColor"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/></g></symbol>
+      <symbol id="i-ear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="13.5" width="4.5" height="7" rx="1.8"/><rect x="16.5" y="13.5" width="4.5" height="7" rx="1.8"/></g></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-updown" viewBox="0 0 24 24"><path d="M8 10l4-4 4 4M8 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></g></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/></g></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></g></symbol>
+      <symbol id="i-side-l" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M9 4.5v15"/></g></symbol>
+      <symbol id="i-side-r" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M15 4.5v15"/></g></symbol>
+      <symbol id="i-focus" viewBox="0 0 24 24"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></g></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.6-6.5 4.6v-16a1 1 0 0 1 1-1z" fill="currentColor"/></symbol>
+      <symbol id="i-bookmark-o" viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.6-6.5 4.6v-16a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="8" y="8" width="12.5" height="12.5" rx="2.5"/><path d="M16 8V5.5A2 2 0 0 0 14 3.5H5.5a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2H8"/></g></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <a class="skip" href="#reader" id="skip-text">Skip to text</a>
+  <a class="skip" href="#playdock" id="skip-player">Skip to player</a>
+  <div class="app" id="app">
+    <header class="topbar" id="topbar">
+      <div class="tb-start">
+        <button class="ib" id="toggle-contents" aria-controls="contents" aria-label="Show contents" title="Show contents ( [ )" hidden><svg aria-hidden="true"><use href="#i-side-l"/></svg></button>
+        <button class="where" id="where" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet">
+          <span class="where-tx"><span class="t" id="where-t">Al-Fatihah</span><span class="s" id="where-s">Chapter 1, Part 1</span></span>
+          <svg aria-hidden="true"><use href="#i-chevron"/></svg>
+          <span class="sr-only">, go to a chapter, part or verse</span>
+        </button>
+      </div>
+      <div class="tb-end">
+        <div class="modes" role="radiogroup" aria-label="Mode">
+          <button role="radio" data-mode="read" aria-checked="true"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Read</span></button>
+          <button role="radio" data-mode="listen" aria-checked="false"><svg aria-hidden="true"><use href="#i-ear"/></svg><span>Listen</span></button>
+        </div>
+        <button class="ib" id="toggle-panel" aria-controls="side" aria-pressed="true" aria-label="Side panel" title="Side panel ( ] )"><svg aria-hidden="true"><use href="#i-side-r"/></svg></button>
+        <button class="ib" id="toggle-focus" aria-pressed="false" aria-label="Focus, hide all panels" title="Focus ( F )"><svg aria-hidden="true"><use href="#i-focus"/></svg></button>
+        <button class="ib" id="open-settings" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-sheet"><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
+      </div>
+    </header>
+    <aside class="contents" id="contents" aria-label="Contents"></aside>
+    <main class="main" id="main">
+
+      <section class="reader" id="reader" aria-label="Chapter text"></section>
+
+      <section class="listen" id="listen" aria-label="Now reciting" hidden>
+        <div class="stage" id="stage">
+          <p class="nb ar" id="stage-prev" lang="ar" dir="rtl" aria-hidden="true"></p>
+          <p class="now ar" id="stage-now" lang="ar" dir="rtl"></p>
+          <p class="nb ar" id="stage-next" lang="ar" dir="rtl" aria-hidden="true"></p>
+        </div>
+        <div class="line" id="line">
+          <div class="line-box" id="line-box" aria-hidden="true">
+            <p class="ar lt on" lang="ar" dir="rtl"></p>
+            <p class="ar lt" lang="ar" dir="rtl"></p>
+          </div>
+          <p class="sr-only" id="line-full" lang="ar" dir="rtl"></p>
+          <div class="dots" id="line-dots" aria-hidden="true"><span class="dd"></span><span class="lbl"></span></div>
+        </div>
+      </section>
+
+      <button class="follow-chip" id="follow-chip" hidden>Back to the recited verse</button>
+
+      <!-- Read: "Play from verse N", which becomes a slim bar while recitation is on. -->
+      <div class="playdock" id="playdock">
+        <button class="pill" id="pill"><span class="pi"><svg aria-hidden="true"><use href="#i-play" id="pill-use"/></svg></span><span id="pill-label">Play from verse 1</span></button>
+        <div class="slim" id="slim" role="region" aria-label="Recitation" hidden>
+          <div class="prog" data-prog aria-hidden="true"><div class="f"></div></div>
+          <div class="vprog" data-vprog aria-hidden="true"><i></i></div>
+          <div class="perr" data-perr role="alert" hidden><span>Recitation unavailable.</span><button type="button" data-retry>Try again</button></div>
+          <button class="sp" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
+          <button class="tx" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><b><span class="ref-long" data-now-ref></span><span class="ref-short" data-now-short></span></b><span data-now-reciter></span><span class="sr-only">, go to another verse</span></button>
+          <button class="ib" data-prev aria-label="Previous verse"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
+          <button class="ib" data-next aria-label="Next verse"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
+          <button class="ib" data-more aria-label="Reciter, repeat and speed" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
+          <button class="ib" id="slim-collapse" aria-label="Make the player smaller"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Listen: the player. -->
+      <div class="player" id="lplayer" role="region" aria-label="Recitation" hidden>
+        <div class="pl-left">
+          <div class="modes mini" role="radiogroup" aria-label="Mode">
+            <button role="radio" data-mode="read" aria-checked="false" aria-label="Read"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Read</span></button>
+            <button role="radio" data-mode="listen" aria-checked="true"><svg aria-hidden="true"><use href="#i-ear"/></svg><span>Listen</span></button>
+          </div>
+          <button class="ttl" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><span data-now-name></span><svg aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        </div>
+        <div class="meta">
+          <button class="ref" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><b data-now-of></b><span class="sr-only">, go to another verse</span></button>
+          <span data-now-reciter></span>
+          <button class="more bmk" id="lp-bookmark" aria-pressed="false" aria-label="Bookmark this verse"><svg aria-hidden="true"><use href="#i-bookmark-o"/></svg></button>
+          <button class="more" data-more aria-label="Reciter, repeat and speed" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
+        </div>
+        <div class="perr" data-perr role="alert" hidden><span>Recitation unavailable.</span><button type="button" data-retry>Try again</button></div>
+        <div class="prog" data-prog data-seek role="slider" tabindex="0" aria-label="Position in the chapter"><div class="f"></div><span class="d"></span></div>
+        <div class="vprog" data-vprog aria-hidden="true"><i></i></div>
+        <div class="ctl">
+          <button data-prev aria-label="Previous verse"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
+          <button class="pp" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
+          <button data-next aria-label="Next verse"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="side" id="side" aria-label="Now playing and chapter information"></aside>
+  </div>
+
+  <p class="focus-hint" id="focus-hint" hidden>Press F or Esc to bring panels back</p>
+
+  <dialog class="nav-sheet" id="nav-sheet" aria-label="Go to a chapter, part or verse"></dialog>
+  <dialog class="sheet" id="settings-sheet" aria-labelledby="settings-title"></dialog>
+  <dialog class="sheet small" id="more-sheet" aria-labelledby="more-title"></dialog>
+  <dialog class="sheet small" id="keys-sheet" aria-labelledby="keys-title">
+    <div class="sheet-head"><h2 id="keys-title">Keyboard shortcuts</h2><button class="ib" data-close aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <dl class="keys">
+      <dt><kbd>Space</kbd></dt><dd>Play or pause</dd>
+      <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous or next verse</dd>
+      <dt><kbd>/</kbd></dt><dd>Go to a chapter, part or verse</dd>
+      <dt><kbd>[</kbd></dt><dd>Show or hide Contents</dd>
+      <dt><kbd>]</kbd></dt><dd>Show or hide the side panel</dd>
+      <dt><kbd>F</kbd></dt><dd>Focus: hide the sidebars</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Leave Focus, or close a menu</dd>
+      <dt><kbd>?</kbd></dt><dd>This list</dd>
+      <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>On a verse: move between verses; Enter opens its menu</dd>
+    </dl>
+  </dialog>
+
+  <p class="sr-only" id="live" aria-live="polite"></p>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

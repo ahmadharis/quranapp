@@ -13,7 +13,7 @@ A web app to read and listen to the Holy Quran, hosted on GitHub Pages.
 | Verse images (Persian script) | `files.alislam.cloud/quran/verses/<chapter>-<verse>.png` |
 | Manzoor Naskh font | alislam.org's Quran app assets |
 | Other Arabic fonts (Noorehuda, KFGQPC Uthmanic Hafs) | alislam.org's Quran app assets |
-| Urdu font (Jameel Noori Nastaleeq) | `alislam.org/urdu/fonts/` |
+| Urdu font (Jameel Noori Nastaleeq) | Loaded at runtime from alislam.org (`alislam.org/urdu/fonts/Urdu-Nastaleeq.ttf`), the font alislam.org's Quran app uses for Urdu |
 | Amiri, Noto Naskh Arabic fonts | [Google Fonts](https://fonts.google.com/) |
 | Word-by-word timings (`data/words/<reciter>/<chapter>.json`) | Generated from alislam.org's recitation audio and verse text by forced alignment with [rabah2026/wav2vec2-large-xlsr-53-arabic-quran-v_final](https://huggingface.co/rabah2026/wav2vec2-large-xlsr-53-arabic-quran-v_final) (Apache-2.0) |
 
