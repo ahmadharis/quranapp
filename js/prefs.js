@@ -1,5 +1,15 @@
-// Preferences, kept per device in localStorage. Anything stored by an older version, or
-// edited by hand, falls back to the default.
+// Preferences, kept per device in localStorage under one key that never changes.
+//
+// An update must never lose the user's settings or data. What an older version stored is
+// MIGRATED to the current shape (migrate(), one step per schema change), never reset: a value
+// falls back to its default only when it is missing or invalid (edited by hand, or naming a
+// reciter or translation that no longer exists). Keys this version doesn't know are kept.
+//
+// Schema history:
+//   1 - every version up to 1.1.0 (no `schema` field stored).
+//   2 - 1.1.1: adds `schema`; the shape is otherwise unchanged.
+// To change the shape: bump SCHEMA and add a step to STEPS that turns the old values into the
+// new ones.
 
 import { RECITERS, DEFAULT_RECITER } from "./player.js";
 import { TRANSLATIONS, WORD_MEANINGS } from "./api.js";
@@ -13,6 +23,25 @@ export const validPos = (p) =>
   Number.isInteger(p?.ch) && p.ch >= 1 && p.ch <= 114 && Number.isInteger(p.v) && p.v >= 1 && p.v <= verseCount(p.ch);
 
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
+
+export const SCHEMA = 2;
+// STEPS[n] turns schema-n prefs into schema n+1, in place.
+const STEPS = {
+  1: (p) => {
+    // Early versions kept translations behind an on/off switch; a list saved while it was off was
+    // hidden, so it stays hidden (empty) rather than appearing unasked.
+    if (isObj(p.translations) && p.translations.on === false) p.translations = { on: true, list: [] };
+  },
+};
+
+// Old stored prefs -> the current schema. Exported for the tests.
+export function migrate(saved) {
+  const p = isObj(saved) ? { ...saved } : {};
+  let n = Number.isInteger(p.schema) && p.schema >= 1 ? p.schema : 1;
+  for (; n < SCHEMA; n++) STEPS[n]?.(p);
+  p.schema = Math.max(n, SCHEMA); // a newer version's prefs are kept as they are
+  return p;
+}
 
 export const prefs = (() => {
   const defaults = {
@@ -39,7 +68,7 @@ export const prefs = (() => {
   try {
     saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {};
   } catch {}
-  const p = { ...defaults, ...(isObj(saved) ? saved : {}) };
+  const p = { ...defaults, ...migrate(saved) };
   if (!RECITERS.some((r) => r.id === p.reciter)) p.reciter = defaults.reciter;
   if (!["read", "listen"].includes(p.mode)) p.mode = defaults.mode;
   if (!validPos(p.last)) p.last = defaults.last;
@@ -50,10 +79,9 @@ export const prefs = (() => {
   for (const [ch, v] of Object.entries(p.chLast)) if (!validPos({ ch: Number(ch), v })) delete p.chLast[ch];
   const t = isObj(p.translations) ? p.translations : {};
   const ids = new Set(TRANSLATIONS.map((x) => x.id));
-  // There is no master switch any more: translations are shown when any is selected. A list
-  // saved behind the old switch while it was off is cleared, so nothing appears unasked.
+  // There is no master switch any more: translations are shown when any is selected.
   const list = Array.isArray(t.list) ? [...new Set(t.list.filter((id) => ids.has(id)))] : [];
-  p.translations = { on: true, list: t.on === false ? [] : list };
+  p.translations = { on: true, list };
   if (!WORD_MEANINGS.some((w) => w.id === p.wordMeanings)) p.wordMeanings = defaults.wordMeanings;
   if (!isObj(p.layout)) p.layout = {};
   for (const g of LAYOUT_GROUPS) {
@@ -81,6 +109,12 @@ export function savePrefs() {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   } catch {}
 }
+
+// Stored by an older version: write the migrated prefs back once, so they carry the schema.
+try {
+  const stored = JSON.parse(localStorage.getItem(PREFS_KEY) || "null");
+  if (isObj(stored) && stored.schema !== prefs.schema) savePrefs();
+} catch {}
 
 // The translations shown, in order.
 export const shownTranslations = () => prefs.translations.list;

@@ -11,7 +11,7 @@ for (const kind of ["chromium", "webkit", "firefox"]) {
       const { page, errors } = await open(ctx, "#/1:1");
       const csp = [];
       page.on("console", (m) => /Content Security Policy|Refused to/i.test(m.text()) && csp.push(m.text()));
-      await page.click("#pill");
+      await page.click("#player [data-play]");
       await waitFor(page, () => window.quranPlayer.audio.currentTime > 0.3, 25000).catch(() => {});
       await assertSilent(page);
       const t1 = await page.evaluate(() => window.quranPlayer.audio.currentTime);

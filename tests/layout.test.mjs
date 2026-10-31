@@ -7,7 +7,7 @@ const t = checker("docked layout");
 const grp = (w) => (w >= 2240 ? "ultra" : w >= 1680 ? "wide" : w >= 1280 ? "laptop" : "desk");
 const geo = (p) => p.evaluate(() => {
   const r = (s) => { const e = document.querySelector(s); if (!e || getComputedStyle(e).display === "none" || e.hidden) return null; const x = e.getBoundingClientRect(); return [Math.round(x.left), Math.round(x.right)]; };
-  return { vw: innerWidth, overflow: document.documentElement.scrollWidth - innerWidth, top: r("#topbar"), contents: r("#contents"), side: r("#side"), dock: r("#slim") ?? r("#pill"), tc: r("#toggle-contents"), tp: r("#toggle-panel"), dc: document.documentElement.hasAttribute("data-contents"), dp: document.documentElement.hasAttribute("data-panel"), focus: document.documentElement.hasAttribute("data-focus") };
+  return { vw: innerWidth, overflow: document.documentElement.scrollWidth - innerWidth, top: r("#topbar"), contents: r("#contents"), side: r("#side"), dock: r("#player"), tc: r("#toggle-contents"), tp: r("#toggle-panel"), dc: document.documentElement.hasAttribute("data-contents"), dp: document.documentElement.hasAttribute("data-panel"), focus: document.documentElement.hasAttribute("data-focus") };
 });
 const b = await launch("chromium");
 try {

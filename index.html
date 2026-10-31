@@ -48,12 +48,13 @@
       <symbol id="i-bookmark-o" viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.6-6.5 4.6v-16a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
       <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="8" y="8" width="12.5" height="12.5" rx="2.5"/><path d="M16 8V5.5A2 2 0 0 0 14 3.5H5.5a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2H8"/></g></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-repeat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.5l3 3-3 3"/><path d="M4 11v-1.5a4 4 0 0 1 4-4h12"/><path d="M7 21.5l-3-3 3-3"/><path d="M20 13v1.5a4 4 0 0 1-4 4H4"/></g></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     </defs>
   </svg>
 
   <a class="skip" href="#reader" id="skip-text">Skip to text</a>
-  <a class="skip" href="#playdock" id="skip-player">Skip to player</a>
+  <a class="skip" href="#player" id="skip-player">Skip to player</a>
   <div class="app" id="app">
     <header class="topbar" id="topbar">
       <div class="tb-start">
@@ -97,47 +98,29 @@
 
       <button class="follow-chip" id="follow-chip" hidden>Back to the recited verse</button>
 
-      <!-- Read: "Play from verse N", which becomes a slim bar while recitation is on. -->
-      <div class="playdock" id="playdock">
-        <button class="pill" id="pill"><span class="pi"><svg aria-hidden="true"><use href="#i-play" id="pill-use"/></svg></span><span id="pill-label">Play from verse 1</span></button>
-        <div class="slim" id="slim" role="region" aria-label="Recitation" hidden>
+      <!-- The player: one component everywhere, arranged by CSS for the size and mode —
+           a mini bar (phone, Read), a docked bar (Read from 600px; phone landscape Listen),
+           and Now Playing (Listen). ▶ is always on the player's center line. -->
+      <div class="qp" id="player" role="region" aria-label="Recitation">
+        <button class="qp-info" type="button" data-info>
+          <img class="qp-art" alt="" width="48" height="48" hidden>
+          <b class="qp-title" data-now-name></b>
+          <span class="qp-sub"><span class="sub-long" data-now-sub></span><span class="sub-short" data-now-short></span></span>
+        </button>
+        <button class="qp-bm" type="button" id="qp-bookmark" aria-pressed="false" aria-label="Bookmark this verse"><svg aria-hidden="true"><use href="#i-bookmark-o"/></svg></button>
+        <div class="qp-tp">
+          <button class="qp-rep" type="button" id="qp-repeat" aria-pressed="false" aria-label="Repeat this verse" title="Repeat this verse"><svg aria-hidden="true"><use href="#i-repeat"/></svg></button>
+          <button class="qp-sk" type="button" data-prev aria-label="Previous chapter" title="Previous chapter"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
+          <button class="pp" type="button" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
+          <button class="qp-sk" type="button" data-next aria-label="Next chapter" title="Next chapter"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
+          <button class="qp-more" type="button" data-more aria-label="More: speed, reciter, bookmark" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
+        </div>
+        <div class="qp-seek">
+          <span class="qp-time" data-pel aria-hidden="true">0:00</span>
           <div class="prog" data-prog data-seek role="slider" tabindex="0" aria-label="Position in the chapter"><div class="f"></div><span class="d"></span></div>
-          <div class="vprog" data-vprog aria-hidden="true"><i></i></div>
-          <div class="perr" data-perr role="alert" hidden><span>Recitation unavailable.</span><button type="button" data-retry>Try again</button></div>
-          <button class="sp" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
-          <button class="tx" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><b><span class="ref-long" data-now-ref></span><span class="ref-short" data-now-short></span></b><span data-now-reciter></span><span class="sr-only">, go to another verse</span></button>
-          <span class="ptime" data-ptime aria-hidden="true"></span>
-          <button class="ib" data-prev aria-label="Previous chapter" title="Previous chapter"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
-          <button class="ib" data-next aria-label="Next chapter" title="Next chapter"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
-          <button class="ib" data-more aria-label="Reciter, repeat and speed" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
-          <button class="ib" id="slim-collapse" aria-label="Make the player smaller"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button>
-        </div>
-      </div>
-
-      <!-- Listen: the player. -->
-      <div class="player" id="lplayer" role="region" aria-label="Recitation" hidden>
-        <div class="pl-left">
-          <div class="modes mini" role="radiogroup" aria-label="Mode">
-            <button role="radio" data-mode="read" aria-checked="false" aria-label="Read"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Read</span></button>
-            <button role="radio" data-mode="listen" aria-checked="true"><svg aria-hidden="true"><use href="#i-ear"/></svg><span>Listen</span></button>
-          </div>
-          <button class="ttl" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><span data-now-name></span><svg aria-hidden="true"><use href="#i-chevron"/></svg></button>
-        </div>
-        <div class="meta">
-          <button class="ref" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><b data-now-of></b><span class="sr-only">, go to another verse</span></button>
-          <span data-now-reciter></span>
-          <button class="more bmk" id="lp-bookmark" aria-pressed="false" aria-label="Bookmark this verse"><svg aria-hidden="true"><use href="#i-bookmark-o"/></svg></button>
-          <button class="more" data-more aria-label="Reciter, repeat and speed" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
+          <span class="qp-time" data-ptot aria-hidden="true">0:00</span>
         </div>
         <div class="perr" data-perr role="alert" hidden><span>Recitation unavailable.</span><button type="button" data-retry>Try again</button></div>
-        <div class="prog" data-prog data-seek role="slider" tabindex="0" aria-label="Position in the chapter"><div class="f"></div><span class="d"></span></div>
-        <div class="vprog" data-vprog aria-hidden="true"><i></i></div>
-        <p class="ptime" data-ptime aria-hidden="true"></p>
-        <div class="ctl">
-          <button data-prev aria-label="Previous chapter" title="Previous chapter"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
-          <button class="pp" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
-          <button data-next aria-label="Next chapter" title="Next chapter"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
-        </div>
       </div>
     </main>
 

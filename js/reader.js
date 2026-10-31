@@ -248,8 +248,8 @@ export function initReader(ctx) {
 
   // The area between the top bar and the player.
   function viewport() {
-    const dock = document.documentElement.hasAttribute("data-started") && !prefs.barCollapsed ? 96 : 84;
-    return { top: topbar.getBoundingClientRect().bottom, bottom: window.innerHeight - dock };
+    const player = $("#player").getBoundingClientRect();
+    return { top: topbar.getBoundingClientRect().bottom, bottom: Math.min(window.innerHeight, player.top - 8) };
   }
 
   function scrollToVerse(v, behavior = "smooth") {

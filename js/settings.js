@@ -1,10 +1,11 @@
 // Settings, one page: reciter; translations (your list of shown translations — drag a grip to
 // reorder, × to remove — an "Add translation" picker, and word meanings); follow words, Nazira
-// mode, text size, appearance, install. Also the "⋯" sheet of the player: reciter, repeat and
-// speed.
+// mode, text size, appearance, install. Also the "⋯" sheet of the player: speed, reciter and
+// bookmark.
 
 import { RECITERS } from "./player.js";
 import { VERSION, BUILD } from "./version.js";
+import { isBookmarked, toggleBookmark } from "./bookmarks.js";
 import { TRANSLATIONS, WORD_MEANINGS } from "./api.js";
 import { prefs, savePrefs, SPEEDS } from "./prefs.js";
 import { $, $$, h, icon } from "./util.js";
@@ -491,7 +492,8 @@ export function initSettings(ctx) {
   const moreReciters = h("div.choices", { role: "radiogroup", "aria-label": "Reciter" });
   reciterButtons(moreReciters);
   arrowRadios(moreReciters);
-  const repeatRow = h("div.r", {}, h("span.nm", {}, h("b", { text: "Repeat this verse" }), h("span", { text: "Plays the verse again until you move on" })));
+  // The verse being recited: bookmark it (on narrow bars the player has no room for the icon).
+  const bookmarkRow = h("div.r.bm-row", {}, h("span.nm", {}, h("b", { text: "Bookmark this verse" }), h("span.bm-ref")));
   const speeds = h("div.segmented", { role: "radiogroup", "aria-label": "Speed" });
   for (const s of SPEEDS) {
     speeds.append(h("button", { type: "button", role: "radio", "data-speed": s, text: `${s}×`, onclick: () => setSpeed(s) }));
@@ -499,7 +501,7 @@ export function initSettings(ctx) {
   arrowRadios(speeds);
   more.append(
     h("div.sheet-head", {}, h("h2#more-title", { text: "Recitation" }), h("button.ib", { type: "button", "data-close": true, "aria-label": "Close" }, icon("i-close"))),
-    h("div.grpd", {}, repeatRow),
+    h("div.grpd", {}, bookmarkRow),
     h("p.cap", { text: "Speed" }),
     speeds,
     h("p.cap", { text: "Reciter" }),
@@ -527,13 +529,14 @@ export function initSettings(ctx) {
   function renderMore() {
     syncRadios(moreReciters, (b) => b.dataset.reciter === player.reciter);
     syncRadios(speeds, (b) => Number(b.dataset.speed) === prefs.speed);
-    repeatRow.querySelector(".sw")?.remove();
-    repeatRow.append(
-      sw(prefs.repeat, "Repeat this verse", (on) => {
-        prefs.repeat = on;
-        savePrefs();
+    const pos = ctx.current;
+    $(".bm-ref", bookmarkRow).textContent = `${pos.ch}:${pos.v}`;
+    bookmarkRow.querySelector(".sw")?.remove();
+    bookmarkRow.append(
+      sw(isBookmarked(pos), `Bookmark ${pos.ch}:${pos.v}`, () => {
+        toggleBookmark(ctx.current);
         renderMore();
-        $(".sw", repeatRow).focus();
+        $(".sw", bookmarkRow).focus();
       }),
     );
   }

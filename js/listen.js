@@ -216,11 +216,13 @@ export function initListen(ctx) {
   });
 
   // The stage sits above the player, whatever the player's height.
-  const lplayer = $("#lplayer");
-  new ResizeObserver(() => {
-    const r = lplayer.getBoundingClientRect();
-    document.documentElement.style.setProperty("--lp-h", lplayer.hidden ? "0px" : `${Math.max(0, window.innerHeight - r.top)}px`);
-  }).observe(lplayer);
+  const playerEl = $("#player");
+  const measure = () => {
+    const r = playerEl.getBoundingClientRect();
+    document.documentElement.style.setProperty("--lp-h", `${Math.max(0, window.innerHeight - r.top)}px`);
+  };
+  new ResizeObserver(measure).observe(playerEl);
+  window.addEventListener("resize", measure);
   window.addEventListener("online", () => !msg.hidden && render());
 
   let resizeTimer = 0;

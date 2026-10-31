@@ -150,11 +150,58 @@ function setMode(mode) {
   root.dataset.mode = mode;
   for (const g of modeGroups) syncRadios(g, (b) => b.dataset.mode === mode);
   $("#reader").hidden = mode !== "read";
-  $("#playdock").hidden = mode !== "read";
-  $("#lplayer").hidden = mode !== "listen";
+  placePlayer();
   emit("mode");
   ctx.follower.refresh();
 }
+// ---------- the player: one component, three arrangements ----------
+// mini (phone, Read: one row; tapping the info opens Listen), compact (Read from 600px, and
+// phone landscape Listen: a docked bar, the seekbar under the transport), expanded (Listen:
+// Now Playing under the Arabic). The same elements in the same order every time; CSS places
+// them, always with ▶ on the player's center line.
+const playerEl = $("#player");
+const landscape = matchMedia("(max-height: 499px) and (min-width: 640px)");
+function placePlayer() {
+  const variant = ctx.mode === "listen" ? (landscape.matches ? "compact" : "expanded") : window.innerWidth < 600 ? "mini" : "compact";
+  if (playerEl.dataset.variant !== variant) {
+    playerEl.dataset.variant = variant;
+    for (const v of ["mini", "compact", "expanded"]) playerEl.classList.toggle(v, v === variant);
+  }
+}
+window.addEventListener("resize", placePlayer);
+landscape.addEventListener("change", placePlayer);
+// The info area: on the mini bar it opens Now Playing (Listen); elsewhere, the navigator.
+$("[data-info]", playerEl).addEventListener("click", () => {
+  if (playerEl.dataset.variant === "mini") setMode("listen");
+  else ctx.nav.open();
+});
+// Repeat this verse: a toggle in the transport row.
+const repeatBtn = $("#qp-repeat");
+const renderRepeat = () => repeatBtn.setAttribute("aria-pressed", String(prefs.repeat));
+repeatBtn.addEventListener("click", () => {
+  prefs.repeat = !prefs.repeat;
+  savePrefs();
+  renderRepeat();
+  ctx.live(prefs.repeat ? "Repeating this verse." : "Repeat off.");
+});
+renderRepeat();
+// The chapter card as the player's thumbnail.
+const artImg = $(".qp-art", playerEl);
+let artFor = 0;
+function renderArt() {
+  const ch = ctx.current.ch;
+  if (artFor === ch) return;
+  artFor = ch;
+  chapterArtwork(ch).then(
+    (list) => {
+      if (ctx.current.ch !== ch || !list.length) return;
+      artImg.src = list[0].src; // the 96px card
+      artImg.hidden = false;
+    },
+    () => {},
+  );
+}
+
 for (const g of modeGroups) {
   arrowRadios(g);
   for (const b of $$("[role=radio]", g)) b.addEventListener("click", () => b.dataset.mode !== ctx.mode && setMode(b.dataset.mode));
@@ -175,7 +222,7 @@ function showScrub(bar, f) {
   bar.firstChild.style.width = pct;
   const d = bar.querySelector(".d");
   if (d) d.style.left = pct;
-  if (ct) for (const el of $$("[data-ptime]")) el.textContent = `${clock(f * ct.duration)} / ${clock(ct.duration)}`;
+  if (ct) for (const el of $$("[data-pel]")) el.textContent = clock(f * ct.duration);
 }
 for (const bar of $$("[data-seek]")) {
   const fAt = (x) => {
@@ -229,23 +276,6 @@ for (const bar of $$("[data-seek]")) {
     seekChapterFraction(clamp(to / ct.duration, 0, 1));
   });
 }
-$("#pill").addEventListener("click", () => {
-  if (root.hasAttribute("data-started") && prefs.barCollapsed) {
-    prefs.barCollapsed = false;
-    savePrefs();
-    renderTransport();
-    $("#slim .sp").focus();
-    return;
-  }
-  ctx.togglePlay();
-});
-$("#slim-collapse").addEventListener("click", () => {
-  prefs.barCollapsed = true;
-  savePrefs();
-  renderTransport();
-  $("#pill").focus();
-});
-
 const reciterName = () => RECITERS.find((r) => r.id === player.reciter)?.name ?? "";
 
 // ---------- the chapter as one track ----------
@@ -306,15 +336,16 @@ function renderProgress(fraction = 0) {
   const ct = nowInChapter();
   const pct = `${clamp(ct ? (ct.position / ct.duration) * 100 : ((v - 1 + fraction) / n) * 100, 0, 100)}%`;
   if (scrubbing) return; // the drag shows its own position
-  for (const el of $$("[data-ptime]")) el.textContent = ct ? `${clock(ct.position)} / ${clock(ct.duration)}` : "";
+  for (const el of $$("[data-pel]")) el.textContent = ct ? clock(ct.position) : "";
+  for (const el of $$("[data-ptot]")) el.textContent = ct ? clock(ct.duration) : "";
   for (const bar of $$("[data-seek]")) {
     if (ct) {
       const now = Math.round(ct.position / 1000);
-      if (bar.getAttribute("aria-valuenow") !== String(now) || bar.getAttribute("aria-valuemin") !== "0") {
+      if (bar.getAttribute("aria-valuenow") !== String(now) || bar.getAttribute("aria-valuemin") !== "0" || !bar.getAttribute("aria-valuetext")?.startsWith(`Verse ${v} `)) {
         bar.setAttribute("aria-valuemin", "0");
         bar.setAttribute("aria-valuemax", Math.round(ct.duration / 1000));
         bar.setAttribute("aria-valuenow", now);
-        bar.setAttribute("aria-valuetext", `${clock(ct.position)} of ${clock(ct.duration)}`);
+        bar.setAttribute("aria-valuetext", `Verse ${v} of ${n}, ${clock(ct.position)} of ${clock(ct.duration)}`);
       }
     } else {
       bar.setAttribute("aria-valuemin", "1");
@@ -328,10 +359,8 @@ function renderProgress(fraction = 0) {
     const d = bar.querySelector(".d");
     if (d) d.style.left = pct;
   }
-  // Progress within the verse, so a long verse never looks frozen: the thin bars and the play
-  // button's ring.
-  for (const bar of $$("[data-vprog]")) bar.firstChild.style.width = `${clamp(fraction * 100, 0, 100)}%`;
-  root.style.setProperty("--vprog", `${clamp(fraction * 100, 0, 100).toFixed(1)}%`);
+  // The play button's ring shows the same chapter progress as the seekbar.
+  root.style.setProperty("--ring", pct);
 }
 
 function renderNow() {
@@ -340,11 +369,12 @@ function renderNow() {
   $("#where-t").textContent = chapterName(ch);
   $("#where-s").replaceChildren(`Chapter ${ch}, Part ${partOf(ctx.current)}`, translationKey());
   document.title = `${chapterName(ch)} ${ch}:${v} — Holy Quran`;
-  for (const el of $$("[data-now-ref]")) el.textContent = `${chapterName(ch)}, verse ${v}`;
-  for (const el of $$("[data-now-short]")) el.textContent = `${ch}:${v}`;
-  for (const el of $$("[data-now-of]")) el.textContent = `Verse ${v} of ${n}`;
+  // The player's label: the chapter, then "Verse 18 of 84 · reciter" (short on narrow bars).
   for (const el of $$("[data-now-name]")) el.textContent = chapterName(ch);
-  for (const el of $$("[data-now-reciter]")) el.textContent = reciterName();
+  for (const el of $$("[data-now-sub]")) el.textContent = `Verse ${v} of ${n} · ${reciterName()}`;
+  for (const el of $$("[data-now-short]")) el.textContent = `${v}/${n} · ${reciterName()}`;
+  $("[data-info]", playerEl).setAttribute("aria-label", `${chapterName(ch)}, verse ${v} of ${n}, ${reciterName()}. ${playerEl.dataset.variant === "mini" ? "Open Now Playing" : "Go to another verse"}`);
+  renderArt();
   for (const b of $$("[data-prev]")) b.disabled = ch === 1 && v === 1;
   for (const b of $$("[data-next]")) b.disabled = ch === 114;
   renderProgress(0);
@@ -375,12 +405,6 @@ function renderTransport() {
   root.toggleAttribute("data-started", started);
   for (const u of $$("[data-play-use]")) u.setAttribute("href", playing ? "#i-pause" : "#i-play");
   for (const b of $$("[data-play]")) b.setAttribute("aria-label", playing ? "Pause" : "Play");
-  const showBar = started && !prefs.barCollapsed;
-  $("#slim").hidden = !showBar;
-  $("#pill").hidden = showBar;
-  $("#pill-use").setAttribute("href", playing ? "#i-pause" : "#i-play");
-  $("#pill-label").textContent = started && prefs.barCollapsed ? (playing ? `Verse ${ctx.current.v}` : `Resume, verse ${ctx.current.v}`) : `Play from verse ${ctx.current.v}`;
-  $("#pill").setAttribute("aria-label", started && prefs.barCollapsed ? `Show the player${playing ? ", playing" : ""}, verse ${ctx.current.v}` : `Play from verse ${ctx.current.v}`);
 }
 
 player.addEventListener("state", renderTransport);
@@ -439,7 +463,7 @@ player.addEventListener("verse", (e) => {
 });
 
 // Listen: bookmark the verse being recited.
-const lpBookmark = $("#lp-bookmark");
+const lpBookmark = $("#qp-bookmark");
 function renderBookmark() {
   const on = isBookmarked(ctx.current);
   lpBookmark.setAttribute("aria-pressed", String(on));
