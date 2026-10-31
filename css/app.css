@@ -7,11 +7,12 @@
   font-display: swap;
   font-feature-settings: "ccmp";
 }
-/* 13.8 MB: the browser only downloads it once Urdu text is on screen. */
+/* Urdu: Noto Nastaliq Urdu (SIL Open Font License, see assets/fonts/OFL-NotoNastaliqUrdu.txt).
+   The browser only downloads it once Urdu text is on screen. */
 @font-face {
-  font-family: "Jameel Noori Nastaleeq";
-  /* Loaded from alislam.org (served cross-origin) only when Urdu text is shown; not shipped here. */
-  src: local("Jameel Noori Nastaleeq"), url("https://www.alislam.org/urdu/fonts/Urdu-Nastaleeq.ttf") format("truetype");
+  font-family: "Noto Nastaliq Urdu";
+  src: local("Noto Nastaliq Urdu"), url("../assets/fonts/NotoNastaliqUrdu.ttf") format("truetype");
+  font-weight: 400 700;
   font-display: swap;
 }
 
@@ -42,7 +43,7 @@
   --ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
   --ar: "ManzoorNaskh", serif;
   --tr: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --urf: "Jameel Noori Nastaleeq", "Noto Nastaliq Urdu", "Noto Naskh Arabic", serif;
+  --urf: "Noto Nastaliq Urdu", "Noto Naskh Arabic", serif;
   --scale: 1;
   /* Arabic grows with the window: 27px on phones up to 40px on large screens. */
   --ar-size: calc(clamp(27px, 1vw + 23px, 40px) * var(--scale));

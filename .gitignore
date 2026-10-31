@@ -7,6 +7,8 @@ reference/
 # Fonts fetched from alislam.org / Google Fonts — only the ones the app uses are tracked
 assets/fonts/*
 !assets/fonts/ManzoorNaskh.ttf
+!assets/fonts/NotoNastaliqUrdu.ttf
+!assets/fonts/OFL-NotoNastaliqUrdu.txt
 
 .DS_Store
 node_modules/
