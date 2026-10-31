@@ -3,10 +3,10 @@
 //
 //   < 600      phone: one column; the navigator is a sheet
 //   600–899    tablet portrait: one wider column
-//   900–1279   tablet landscape: Contents sidebar + column
-//   1280–1679  laptop: reading area + side panel (Contents starts closed: all three don't fit)
-//   1680–2239  Contents + reading + side panel
-//   ≥ 2240     wider still, up to three translation columns
+//   900–1279   tablet landscape: Contents (280px) docked left + the text
+//   1280–1679  laptop: Contents (280) or the info panel (300), one at a time
+//   1680–2239  Contents (300) + text + info panel (320), both allowed
+//   ≥ 2240     Contents (320) + text + info panel (360); translations side by side
 //
 // Contents (the navigator, Continue listening, Bookmarks) is the same in Read and Listen; the
 // side panel shows in Read only. The player always stays in the bottom dock. Whether each
@@ -33,6 +33,7 @@ export function initLayout(ctx) {
   const focusBtn = $("#toggle-focus");
   const hint = $("#focus-hint");
   let group = "";
+  let hintShowing = false;
 
   function apply() {
     group = groupFor(window.innerWidth);
@@ -41,6 +42,8 @@ export function initLayout(ctx) {
     const read = ctx.mode === "read";
     const focus = !!L?.focus;
     const cKey = read ? "contents" : "contentsListen"; // remembered per mode
+    // 1280–1679: one sidebar at a time (the panel wins if an older saved state has both).
+    if (group === "laptop" && read && L.contents && L.panel) L.contents = false;
     const contents = !!L && L[cKey] && !focus;
     const panelSize = PANEL_GROUPS.has(group) && read;
     const panel = panelSize && L.panel && !focus && ctx.panel.hasContent();
@@ -51,15 +54,14 @@ export function initLayout(ctx) {
     // where its sidebar exists at this size, pressed while open.
     contentsBtn.hidden = !L;
     contentsBtn.setAttribute("aria-pressed", String(contents));
-    // At panel sizes the button keeps its place in Listen (hidden, not removed), so the
-    // Read | Listen switch doesn't move when the mode changes.
+    // The panel's toggle is the last header item at the sizes that have the panel; in Listen
+    // it stays in place, disabled, so nothing shifts.
     panelBtn.hidden = !PANEL_GROUPS.has(group);
-    panelBtn.classList.toggle("ghost", !panelSize);
+    panelBtn.disabled = PANEL_GROUPS.has(group) && !read;
     panelBtn.setAttribute("aria-pressed", String(panel));
-    panelBtn.disabled = panelSize && !ctx.panel.hasContent() && !focus;
     focusBtn.hidden = !L;
     focusBtn.setAttribute("aria-pressed", String(focus));
-    hint.hidden = !focus;
+    hint.hidden = !(focus && hintShowing);
   }
 
   // what: "contents" (the left sidebar), "panel" (the right one) or "focus" (hide both).
@@ -68,7 +70,15 @@ export function initLayout(ctx) {
     if (!L) return;
     if (what === "panel" && (!PANEL_GROUPS.has(group) || ctx.mode !== "read")) return;
     const k = what === "contents" && ctx.mode !== "read" ? "contentsListen" : what;
-    if (what === "focus") L.focus = !L.focus;
+    if (what === "focus") {
+      L.focus = !L.focus;
+      // "Press F or Esc to bring panels back": the first time only, for a few seconds.
+      if (L.focus && !prefs.focusHintSeen) {
+        prefs.focusHintSeen = true;
+        hintShowing = true;
+        setTimeout(() => ((hintShowing = false), apply()), 6000);
+      }
+    }
     else if (L.focus) {
       // Leaving Focus by opening a sidebar brings back just that one.
       L.focus = false;
@@ -76,6 +86,11 @@ export function initLayout(ctx) {
       if (what === "contents") L.panel = false;
       else L.contents = false;
     } else L[k] = !L[k];
+    // 1280–1679 has room for one sidebar: opening one closes the other ("]" swaps them).
+    if (group === "laptop" && L[k]) {
+      if (what === "panel") L.contents = L.contentsListen = false;
+      if (what === "contents" && ctx.mode === "read") L.panel = false;
+    }
     savePrefs();
     const had = document.activeElement;
     apply();

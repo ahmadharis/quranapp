@@ -6,7 +6,7 @@ import { PART_STARTS, PART_QUARTERS, PART_HALVES, PART_THREE_QUARTERS } from "./
 import { getLayers, TRANSLATIONS } from "./api.js";
 import { prefs, savePrefs, shownTranslations } from "./prefs.js";
 import { isBookmarked, toggleBookmark, bookmarks } from "./bookmarks.js";
-import { $, $$, h, icon, key, verseCount, chapterName, chapterArabic, arDigits, renderArabic, tokens, safeHtml, markFootnotes, reducedMotion } from "./util.js";
+import { $, $$, h, icon, key, verseCount, chapterName, chapterArabic, arDigits, renderArabic, tokens, isWord, safeHtml, markFootnotes, reducedMotion } from "./util.js";
 
 // alislam's part, quarter, half and ثلث points.
 const MARKERS = new Map();
@@ -55,16 +55,32 @@ export function translationBlock(id, value) {
   return box;
 }
 
-// Word meanings for one verse: each word with its gloss, in reading order.
-function meaningsBlock(ar, glosses, lang) {
-  const box = h("div.wm-list", { dir: "rtl" });
-  if (!glosses) return box;
+// Word meanings: the verse as a right-to-left grid of cells — each word with its gloss under a
+// hairline — which replaces the flowing Arabic line. Cell k is word k (util.js isWord), so the
+// word timings light cells exactly as they light words; glosses come per token (alislam's
+// words[]), and a missing one just leaves the cell's gloss empty. Ornaments and pause marks get
+// small cells of their own; the verse-end ornament is the last.
+const WM_BY = { "words-en": "Sher Ali", "words-ur": "Mir Muhammad Ishaq" };
+function wordGrid(ar, glosses, id) {
+  const ur = id === "words-ur";
+  const grid = h("div.wgrid", { lang: "ar", dir: "rtl" });
+  let w = 0;
   tokens(ar).forEach((t, i) => {
-    const g = glosses[i];
-    if (!g) return;
-    box.append(h("span.wm", {}, h("span.ar", { lang: "ar", text: t }), h(`span.g.${lang}`, { lang: lang === "ur" ? "ur" : "en", dir: lang === "ur" ? "rtl" : "ltr", text: g })));
+    if (!isWord(t)) {
+      grid.append(h("span.cell.end", { "aria-hidden": "true" }, h("span.a.ar", { text: t })));
+      return;
+    }
+    const g = Array.isArray(glosses) ? glosses[i] ?? "" : "";
+    grid.append(
+      h(
+        "span.cell.w",
+        { "data-w": w++ },
+        h("span.a.ar", { text: t }),
+        h(`span.g${ur ? ".ur" : ""}`, { lang: ur ? "ur" : "en", dir: ur ? "rtl" : "ltr", text: g }),
+      ),
+    );
   });
-  return box;
+  return h("div.blk.wm-blk", {}, h("span.tr-chip", { lang: "en", dir: "ltr", text: `Word meanings · ${WM_BY[id]}` }), grid);
 }
 
 export function initReader(ctx) {
@@ -170,7 +186,10 @@ export function initReader(ctx) {
       const box = $(".v-tr", art);
       const have = new Map([...box.children].filter((el) => !el.classList.contains("failed")).map((el) => [el.dataset.t, el]));
       box.replaceChildren(...ids.map((id) => have.get(id) ?? h(`div.tr.${translationInfo(id).script}.pending`, { "data-t": id })));
-      if (wm === "off" || prefs.nazira) $(".v-wm", art).replaceChildren();
+      if (wm === "off" || prefs.nazira || $(".v-wm .wm-blk", art)?.dataset.id !== wm) {
+        $(".v-wm", art).replaceChildren();
+        art.classList.remove("has-grid");
+      }
     }
     // Nazira mode shows the Arabic only: nothing to fetch (the settings stay as they are).
     const want = prefs.nazira ? [] : (wm === "off" ? ids : [...ids, wm]).filter((id) => id === wm || $$(`.v-tr .pending[data-t="${id}"]`, reader).length);
@@ -183,7 +202,7 @@ export function initReader(ctx) {
         if (!art) continue;
         if (id === wm) {
           const ar = ctx.texts.get(ch)?.get(v);
-          if (ar) $(".v-wm", art).replaceChildren(meaningsBlock(ar, value, wm === "words-ur" ? "ur" : "en"));
+          if (ar) showGrid(art, ar, value, wm);
           else glossCache.set(v, value);
           continue;
         }
@@ -205,11 +224,20 @@ export function initReader(ctx) {
       if (e.detail.ch !== ch) return;
       for (const { v, ar } of e.detail.rows) {
         if (glossCache.has(v)) {
-          $(".v-wm", verseEl(v))?.replaceChildren(meaningsBlock(ar, glossCache.get(v), wm === "words-ur" ? "ur" : "en"));
+          const art = verseEl(v);
+          if (art) showGrid(art, ar, glossCache.get(v), wm);
           glossCache.delete(v);
         }
       }
     });
+  }
+
+  function showGrid(art, ar, glosses, id) {
+    const blk = wordGrid(ar, glosses, id);
+    blk.dataset.id = id;
+    $(".v-wm", art).replaceChildren(blk);
+    art.classList.add("has-grid");
+    ctx.follower.refresh();
   }
 
   function refreshLayers() {
@@ -501,9 +529,12 @@ export function initReader(ctx) {
     backToRecited,
     onTick,
     resetFollow: () => (lastUserScroll = 0),
+    // The word follower lights cells in the word grid when it shows, else words in the text.
     targets: (pos) => {
       const art = pos.ch === ctx.viewCh && ctx.mode === "read" ? verseEl(pos.v) : null;
-      return art ? [$(".v-ar", art)] : [];
+      if (!art) return [];
+      const grid = !prefs.nazira && art.classList.contains("has-grid") ? $(".wgrid", art) : null;
+      return [grid ?? $(".v-ar", art)];
     },
   };
 }

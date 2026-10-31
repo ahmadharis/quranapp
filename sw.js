@@ -5,13 +5,16 @@
 //   cache name carries the commit (stamped in by the Pages workflow); a new deploy installs a
 //   new snapshot in the background, which the next visit uses.
 // - Fonts and icons fetched later (the 13.8 MB Urdu font only once Urdu is shown): cache first.
-// - Word timings (data/words/…) and anything else: network first, cached copy offline.
-// - Local development (the unstamped "quran-dev" cache): network first for everything, so
+// - Word timings (data/words/…), verse durations (data/durations/…) and anything else:
+//   network first, cached copy offline.
+// - Local development (the unstamped development cache): network first for everything, so
 //   edits show at once while offline still works.
 // - Quran text is cached by the app itself (IndexedDB). Recitation audio streams from
 //   files.alislam.cloud and is not intercepted.
 
-const CACHE = "quran-dev"; // replaced with quran-<commit> at deploy
+// The deploy replaces "quran-dev" with "quran-<commit>"; the version in the name means a
+// version bump always starts a fresh cache.
+const CACHE = "quran-dev-v1.1.0";
 const NETWORK_TIMEOUT_MS = 3000;
 const SHELL = [
   "./",
@@ -19,7 +22,9 @@ const SHELL = [
   "css/app.css",
   "js/boot.js",
   "js/app.js",
+  "js/version.js",
   "js/install.js",
+  "js/durations.js",
   "js/bookmarks.js",
   "js/api.js",
   "js/artwork.js",
@@ -43,7 +48,7 @@ const SHELL = [
   "icons/apple-touch-icon.png",
 ];
 const IMMUTABLE = /\/(assets|icons)\//;
-const DEV = CACHE === "quran-dev";
+const DEV = CACHE.startsWith("quran-" + "dev"); // split so the deploy stamp leaves it alone
 const shellUrls = new Set(SHELL.map((u) => new URL(u, self.registration.scope).href));
 
 self.addEventListener("install", (event) => {

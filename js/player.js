@@ -461,6 +461,11 @@ export class Player extends EventTarget {
     this.loadError = false; // a verse couldn't be fetched (offline, CDN, captive portal); retrying
     // Optional hook: (from, to) => true to play `from` again instead of moving on (Repeat).
     this.shouldRepeat = null;
+    // Optional hook: (segment {ch, v}, msInVerseFile) => {duration, position} in ms of the
+    // chapter, so the lock screen and car show one track per chapter.
+    this.timeline = null;
+    this.lastMeta = ""; // metadata is only re-sent when it actually changes
+    this.pendingSeek = null; // {ch, v, ms}: a seek to apply once that verse plays
     this.#useBackend(prefersChunks());
     this.reciter = DEFAULT_RECITER;
     this.position = { ch: 1, v: 1 };
@@ -553,6 +558,28 @@ export class Player extends EventTarget {
     this.#announce();
   }
 
+  // Go to a verse and, when that verse is already buffered, to `ms` inside it (file time);
+  // otherwise to the verse's start. Plays if playing, cues if not.
+  seekTo(pos, ms = 0) {
+    const seg = this.backend.segments?.find((s) => s.ch === pos.ch && s.v === pos.v);
+    const b = this.audio.buffered;
+    if (this.started && seg && b.length && seg.start >= b.start(0) - 0.01) {
+      const into = Math.min(Math.max((ms - seg.fileMs) / 1000, 0), Math.max(0, seg.end - seg.start - 0.05));
+      const moved = key(pos) !== key(this.position);
+      this.position = { ...pos };
+      this.audio.currentTime = seg.start + into + 0.001;
+      if (moved) this.#announce();
+      return;
+    }
+    // Not loaded (e.g. outside the current chunk): rebuild from that verse, and move to `ms`
+    // inside it as soon as it plays (#sync). play() keeps the user-gesture unlock on iOS.
+    this.pendingSeek = ms > 0 ? { ch: pos.ch, v: pos.v, ms } : null;
+    if (this.playing) {
+      this.started = false;
+      this.play(pos);
+    } else this.cue(pos);
+  }
+
   pause() {
     this.backend.pause?.(); // between chunks, the next one must not start by itself
     this.audio.pause();
@@ -599,6 +626,16 @@ export class Player extends EventTarget {
     const t = this.audio.currentTime;
     const seg = this.backend.verseAt(t);
     if (!seg) return;
+    // A seek waiting for its verse to arrive: jump to the moment inside it, once.
+    const ps = this.pendingSeek;
+    if (ps && ps.ch === seg.ch && ps.v === seg.v) {
+      this.pendingSeek = null;
+      const into = Math.min(Math.max((ps.ms - seg.fileMs) / 1000, 0), Math.max(0, seg.end - seg.start - 0.05));
+      if (into > t - seg.start + 0.25) {
+        this.audio.currentTime = seg.start + into;
+        return;
+      }
+    } else if (ps && (ps.ch !== this.position.ch || ps.v !== this.position.v)) this.pendingSeek = null;
     if (key(seg) !== key(this.position)) {
       // Repeat: back to the start of the verse, without announcing the next one (no flicker
       // on the lock screen).
@@ -612,13 +649,19 @@ export class Player extends EventTarget {
       this.position = { ch: seg.ch, v: seg.v };
       this.#announce();
     }
-    // The lock screen and car show progress through the current verse.
+    // The lock screen and car show progress: through the whole chapter when the `timeline`
+    // hook can place this moment in it (one track per chapter), else through the verse.
     try {
-      navigator.mediaSession?.setPositionState?.({
-        duration: Math.max(0.1, seg.end - seg.start),
-        position: Math.min(Math.max(0, t - seg.start), seg.end - seg.start),
-        playbackRate: this.audio.playbackRate || 1,
-      });
+      const ms = (t - seg.start) * 1000 + seg.fileMs;
+      const tl = this.timeline?.(seg, ms);
+      const duration = tl ? tl.duration / 1000 : seg.end - seg.start;
+      let position = tl ? tl.position / 1000 : t - seg.start;
+      const rate = this.audio.playbackRate;
+      // Only valid numbers: iOS throws on anything else.
+      if (Number.isFinite(duration) && duration > 0 && Number.isFinite(position)) {
+        position = Math.min(Math.max(0, position), duration);
+        navigator.mediaSession?.setPositionState?.({ duration, position, playbackRate: Number.isFinite(rate) && rate > 0 ? rate : 1 });
+      }
     } catch {}
   }
 
@@ -651,6 +694,11 @@ export class Player extends EventTarget {
     const reciter = RECITERS.find((r) => r.id === this.reciter)?.name ?? "";
     const custom = this.describe?.(this.position, reciter);
     if (custom) {
+      // Same details as now (e.g. the next verse of the same chapter): leave them alone, so
+      // the car and lock screen don't treat it as a new track.
+      const sig = JSON.stringify(custom);
+      if (sig === this.lastMeta) return;
+      this.lastMeta = sig;
       navigator.mediaSession.metadata = new MediaMetadata(custom);
       return;
     }

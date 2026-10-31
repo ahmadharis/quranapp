@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Holy Quran</title>
   <meta name="description" content="Read and listen to the Holy Quran, verse by verse, with gapless recitation.">
-  <meta name="theme-color" content="#F2F4F1" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0E1220" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F4F4EE" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161514" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -47,6 +47,7 @@
       <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.6-6.5 4.6v-16a1 1 0 0 1 1-1z" fill="currentColor"/></symbol>
       <symbol id="i-bookmark-o" viewBox="0 0 24 24"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.6-6.5 4.6v-16a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
       <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="8" y="8" width="12.5" height="12.5" rx="2.5"/><path d="M16 8V5.5A2 2 0 0 0 14 3.5H5.5a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2H8"/></g></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     </defs>
   </svg>
@@ -56,7 +57,7 @@
   <div class="app" id="app">
     <header class="topbar" id="topbar">
       <div class="tb-start">
-        <button class="ib edge" id="toggle-contents" aria-controls="contents" aria-pressed="false" aria-label="Contents" title="Contents ( [ )" hidden><svg aria-hidden="true"><use href="#i-side-l"/></svg></button>
+        <button class="ib edge" id="toggle-contents" aria-controls="contents" aria-pressed="false" aria-label="Contents" title="Contents ["  hidden><svg aria-hidden="true"><use href="#i-side-l"/></svg></button>
         <button class="where" id="where" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet">
           <span class="where-tx"><span class="t" id="where-t">Al-Fatihah</span><span class="s" id="where-s">Chapter 1, Part 1</span></span>
           <svg aria-hidden="true"><use href="#i-chevron"/></svg>
@@ -70,7 +71,7 @@
         </div>
         <button class="ib" id="toggle-focus" aria-pressed="false" aria-label="Focus, hide all panels" title="Focus ( F )"><svg aria-hidden="true"><use href="#i-focus"/></svg></button>
         <button class="ib" id="open-settings" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-sheet"><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
-        <button class="ib edge" id="toggle-panel" aria-controls="side" aria-pressed="true" aria-label="Side panel" title="Side panel ( ] )"><svg aria-hidden="true"><use href="#i-side-r"/></svg></button>
+        <button class="ib edge" id="toggle-panel" aria-controls="side" aria-pressed="true" aria-label="Chapter info" title="Chapter info ]" ><svg aria-hidden="true"><use href="#i-side-r"/></svg></button>
       </div>
     </header>
     <aside class="contents" id="contents" aria-label="Contents"></aside>
@@ -100,13 +101,14 @@
       <div class="playdock" id="playdock">
         <button class="pill" id="pill"><span class="pi"><svg aria-hidden="true"><use href="#i-play" id="pill-use"/></svg></span><span id="pill-label">Play from verse 1</span></button>
         <div class="slim" id="slim" role="region" aria-label="Recitation" hidden>
-          <div class="prog" data-prog aria-hidden="true"><div class="f"></div></div>
+          <div class="prog" data-prog data-seek role="slider" tabindex="0" aria-label="Position in the chapter"><div class="f"></div><span class="d"></span></div>
           <div class="vprog" data-vprog aria-hidden="true"><i></i></div>
           <div class="perr" data-perr role="alert" hidden><span>Recitation unavailable.</span><button type="button" data-retry>Try again</button></div>
           <button class="sp" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
           <button class="tx" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet"><b><span class="ref-long" data-now-ref></span><span class="ref-short" data-now-short></span></b><span data-now-reciter></span><span class="sr-only">, go to another verse</span></button>
-          <button class="ib" data-prev aria-label="Previous verse"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
-          <button class="ib" data-next aria-label="Next verse"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
+          <span class="ptime" data-ptime aria-hidden="true"></span>
+          <button class="ib" data-prev aria-label="Previous chapter" title="Previous chapter"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
+          <button class="ib" data-next aria-label="Next chapter" title="Next chapter"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
           <button class="ib" data-more aria-label="Reciter, repeat and speed" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
           <button class="ib" id="slim-collapse" aria-label="Make the player smaller"><svg aria-hidden="true"><use href="#i-chevron"/></svg></button>
         </div>
@@ -130,10 +132,11 @@
         <div class="perr" data-perr role="alert" hidden><span>Recitation unavailable.</span><button type="button" data-retry>Try again</button></div>
         <div class="prog" data-prog data-seek role="slider" tabindex="0" aria-label="Position in the chapter"><div class="f"></div><span class="d"></span></div>
         <div class="vprog" data-vprog aria-hidden="true"><i></i></div>
+        <p class="ptime" data-ptime aria-hidden="true"></p>
         <div class="ctl">
-          <button data-prev aria-label="Previous verse"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
+          <button data-prev aria-label="Previous chapter" title="Previous chapter"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
           <button class="pp" data-play aria-label="Play"><svg aria-hidden="true"><use href="#i-play" data-play-use/></svg></button>
-          <button data-next aria-label="Next verse"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
+          <button data-next aria-label="Next chapter" title="Next chapter"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
         </div>
       </div>
     </main>

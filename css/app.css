@@ -1,7 +1,6 @@
-/* Palette: lapis and gold leaf, the two colors of Quran illumination. One rule in both
-   themes: lapis fills (the play star, the active switch, buttons), gold highlights (the
-   recited word, ornaments, the star's edge). Light: a vellum ground. Dark ("lapis at night"):
-   a deep lapis-black ground with warm off-white text; text in the accent role reads gold. */
+/* Palette "Gold and green": green fills (the play star, the active switch, buttons, selected
+   states) and gold highlights (the recited word, ornaments, the star's edge), with no blue in
+   either theme. Light: a warm paper ground. Dark: warm charcoal; accent text reads gold. */
 @font-face {
   font-family: "ManzoorNaskh";
   src: url("../assets/fonts/ManzoorNaskh.ttf") format("truetype");
@@ -18,31 +17,34 @@
 }
 
 :root {
-  --bg: #f2f4f1;
-  --surface: #ffffff;
-  --raised: #e6eae7;
-  --line: #d8ddd9;
-  --ink: #151b27;
-  --ink2: #495263;
-  --ink3: #5a6373;
-  --accent: #1f3a68; /* lapis: fills */
-  --on-accent: #ffffff;
-  --accent-ink: #1f3a68; /* lapis as text: 10:1 on vellum */
-  --prog: #1f3a68;
-  --focus: #1f3a68;
-  --tr1: #1f3a68; --tr2: #a8801f; --tr3: #6b7486; /* translation rules, in display order */
-  --tint: rgba(31, 58, 104, 0.14);
-  --word-ink: #765808; /* gold ink: 5.5:1 on the current-verse band, 6:1 on vellum */
-  --word-tint: rgba(31, 58, 104, 0.1);
-  --band: #e6ebf1;
-  --player: #e3e8f0;
-  --track: #73809a; /* 3.2:1 against the player surface */
-  --play: #1f3a68;
+  /* "Gold and green": no blue in either theme. */
+  --bg: #f4f4ee;
+  --surface: #fffffd;
+  --raised: #e8eae2;
+  --line: #d7dbcf;
+  --ink: #18201b; /* 15:1 on bg */
+  --ink2: #4c554e; /* 7:1 */
+  --ink3: #5f685f; /* 5.2:1 on bg, 4.8:1 on the band */
+  --accent: #1f5a45; /* green: fills */
+  --on-accent: #ffffff; /* 8:1 */
+  --accent-ink: #1f5a45; /* green as text: 7.3:1 on bg */
+  --prog: #1f5a45;
+  --focus: #1f5a45;
+  --tr1: #1f5a45; --tr2: #a8801f; --tr3: #6f786f; /* translation rules, in display order */
+  --rwm: #9aa39a; /* the word-meanings block's rule: neutral gray */
+  --star-edge: #9a7419; /* the play star's gold edge */
+  --tint: rgba(31, 90, 69, 0.12);
+  --word-ink: #765808; /* gold ink: 5.5:1 on the current-verse band, 6:1 on bg */
+  --word-tint: rgba(168, 128, 31, 0.18);
+  --band: #e5ede6;
+  --player: #e3eae3;
+  --track: #778377; /* 3.2:1 against the player surface */
+  --play: #1f5a45;
   --play-ink: #ffffff;
   --gold: #a8801f;
-  --gold-ink: #85640f; /* gold for text: 4.9:1 on vellum */
-  --scrim: rgba(14, 23, 41, 0.38);
-  --shadow: 0 18px 40px -16px rgba(10, 15, 30, 0.4);
+  --gold-ink: #765808; /* gold for text: 6:1 on bg */
+  --scrim: rgba(16, 22, 18, 0.38);
+  --shadow: 0 18px 40px -16px rgba(16, 22, 18, 0.4);
   color-scheme: light;
 
   --ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
@@ -55,72 +57,74 @@
   --tr-size: calc(16px * var(--scale));
   --ur-size: calc(22px * var(--scale));
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  /* The wide layout is one centered unit: [Contents] [text] [panel], 32px apart. */
-  --cw: 320px; /* Contents */
-  --pw: 320px; /* the side panel */
-  --gap: 32px;
-  --tw: 980px; /* the text column, with at most one sidebar */
-  --unit-w: 100vw;
-  --unit-x: 0px; /* the unit's left (and right) margin */
+  /* Wide screens: Contents docked left, the info panel docked right, the text between. */
+  --cw: 280px; /* Contents */
+  --pw: 300px; /* the info panel */
+  --L: 0px; /* the docked sidebars' widths (0 when closed): fixed parts span the middle */
+  --R: 0px;
   --topbar-h: 64px;
 }
 
-/* Lapis at night: the same rule in both themes — lapis fills, gold highlights. */
+/* Dark: warm charcoal, green fills, gold highlights. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1220;
-    --surface: #151b2c;
-    --raised: #1c2438;
-    --line: #28324c;
-    --ink: #efe9dc; /* 15.4:1 on bg */
-    --ink2: #bdb6a6; /* 9.2:1 */
-    --ink3: #9a9384; /* 6.1:1 on bg, 5.0:1 on the band */
-    --accent: #2e5088; /* lapis fill; its text (--on-accent) 6.8:1 */
-    --on-accent: #f4ebd6;
-    --accent-ink: #e6c36a; /* lapis-family text reads gold at night: 11:1 */
-    --tint: rgba(74, 112, 180, 0.22);
-    --word-ink: #e6c36a; /* 9:1 on the band */
-    --word-tint: rgba(217, 180, 90, 0.14);
-    --band: #1a2540;
-    --player: #162038;
-    --track: #717e9f; /* 4.0:1 against the player surface */
-    --prog: #d9b45a;
-    --play: #2e5088;
-    --play-ink: #f4ebd6;
-    --gold: #d9b45a;
+    --bg: #161514;
+    --surface: #1e1d1b;
+    --raised: #282624;
+    --line: #35322e;
+    --ink: #eee8dc; /* 15:1 on bg */
+    --ink2: #bdb5a6; /* 9:1 */
+    --ink3: #968e81; /* 5.6:1 on bg, 4.8:1 on the band */
+    --accent: #2f6b55; /* green fill; its text 5.6:1 */
+    --on-accent: #f6f1e6;
+    --accent-ink: #e6c36a; /* gold text: 10.8:1 */
+    --tint: rgba(134, 194, 168, 0.14);
+    --word-ink: #e6c36a; /* 9.2:1 on the band */
+    --word-tint: rgba(230, 195, 106, 0.16);
+    --band: #232420;
+    --player: #211f1d;
+    --track: #756d61; /* 3.2:1 against the player surface */
+    --prog: #e6c36a;
+    --play: #3a7d64;
+    --play-ink: #f6f1e6;
+    --star-edge: #e6c36a;
+    --gold: #e6c36a;
     --gold-ink: #e6c36a;
     --focus: #e6c36a;
-    --tr1: #6f8fca; --tr2: #d9b45a; --tr3: #8a94a8; /* translation rules, in display order */
-    --scrim: rgba(4, 6, 14, 0.66);
+    --tr1: #86c2a8; --tr2: #e6c36a; --tr3: #9b9488; /* translation rules: 8.9, 10.8, 6.1:1 */
+    --rwm: #5e5850; /* the word-meanings block's rule */
+    --scrim: rgba(8, 7, 6, 0.66);
     --shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e1220;
-  --surface: #151b2c;
-  --raised: #1c2438;
-  --line: #28324c;
-  --ink: #efe9dc; /* 15.4:1 on bg */
-  --ink2: #bdb6a6; /* 9.2:1 */
-  --ink3: #9a9384; /* 6.1:1 on bg, 5.0:1 on the band */
-  --accent: #2e5088; /* lapis fill; its text (--on-accent) 6.8:1 */
-  --on-accent: #f4ebd6;
-  --accent-ink: #e6c36a; /* lapis-family text reads gold at night: 11:1 */
-  --tint: rgba(74, 112, 180, 0.22);
-  --word-ink: #e6c36a; /* 9:1 on the band */
-  --word-tint: rgba(217, 180, 90, 0.14);
-  --band: #1a2540;
-  --player: #162038;
-  --track: #717e9f; /* 4.0:1 against the player surface */
-  --prog: #d9b45a;
-  --play: #2e5088;
-  --play-ink: #f4ebd6;
-  --gold: #d9b45a;
+  --bg: #161514;
+  --surface: #1e1d1b;
+  --raised: #282624;
+  --line: #35322e;
+  --ink: #eee8dc; /* 15:1 on bg */
+  --ink2: #bdb5a6; /* 9:1 */
+  --ink3: #968e81; /* 5.6:1 on bg, 4.8:1 on the band */
+  --accent: #2f6b55; /* green fill; its text 5.6:1 */
+  --on-accent: #f6f1e6;
+  --accent-ink: #e6c36a; /* gold text: 10.8:1 */
+  --tint: rgba(134, 194, 168, 0.14);
+  --word-ink: #e6c36a; /* 9.2:1 on the band */
+  --word-tint: rgba(230, 195, 106, 0.16);
+  --band: #232420;
+  --player: #211f1d;
+  --track: #756d61; /* 3.2:1 against the player surface */
+  --prog: #e6c36a;
+  --play: #3a7d64;
+  --play-ink: #f6f1e6;
+  --star-edge: #e6c36a;
+  --gold: #e6c36a;
   --gold-ink: #e6c36a;
   --focus: #e6c36a;
-  --tr1: #6f8fca; --tr2: #d9b45a; --tr3: #8a94a8; /* translation rules, in display order */
-  --scrim: rgba(4, 6, 14, 0.66);
+  --tr1: #86c2a8; --tr2: #e6c36a; --tr3: #9b9488; /* translation rules: 8.9, 10.8, 6.1:1 */
+  --rwm: #5e5850; /* the word-meanings block's rule */
+  --scrim: rgba(8, 7, 6, 0.66);
   --shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7);
   color-scheme: dark;
 }
@@ -148,17 +152,33 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 .ar-inline { font-family: var(--ar); letter-spacing: normal; }
 
 /* The eight-pointed star: two rounded squares, one turned 45°. */
-.star, .pp, .sp { position: relative; isolation: isolate; }
-/* The eight-pointed star (khatam): one clipped shape, lapis with a 1.5px gold edge in both
-   themes — the gold shape behind, the lapis one inset over it. */
-.pp::before, .pp::after, .sp::before, .sp::after, .pill .pi::before, .pill .pi::after, .cont .go::before, .cont .go::after {
-  content: ""; position: absolute; z-index: -1; clip-path: polygon(50% 1%, 64% 15%, 85% 15%, 85% 36%, 99% 50%, 85% 64%, 85% 85%, 64% 85%, 50% 99%, 36% 85%, 15% 85%, 15% 64%, 1% 50%, 15% 36%, 15% 15%, 36% 15%);
+.pp, .sp { position: relative; isolation: isolate; }
+/* The play button: a filled circle (green) with an ivory play/pause glyph, and a thin gold
+   ring around it that fills clockwise through the current verse (--vprog, set as recitation
+   plays; the seekbar shows the chapter). Loading: a slow turning arc (a static dashed ring
+   with reduced motion). The khatam star stays a signature (icon, markers), not a control. */
+.pp, .sp, .pill .pi, .cont .go { --ring-gap: 5px; --ring-w: 2.5px; border-radius: 50%; }
+.ctl .pp { --ring-gap: 7px; --ring-w: 3px; }
+[data-landscape] .player .ctl .pp { --ring-gap: 9px; --ring-w: 4px; }
+.pp::after, .sp::after, .pill .pi::after, .cont .go::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 50%; background: var(--play);
 }
-.pp::before, .sp::before, .pill .pi::before, .cont .go::before { inset: 0; background: var(--gold); }
-.pp::after, .sp::after, .pill .pi::after, .cont .go::after { inset: 1.5px; background: var(--play); }
-/* Loading: the star turns slowly. */
-[data-buffering] .pp::before, [data-buffering] .pp::after, [data-buffering] .sp::before, [data-buffering] .sp::after { animation: turn 2.4s linear infinite; }
+.pp::before, .sp::before, .pill .pi::before, .cont .go::before {
+  content: ""; position: absolute; inset: calc(-1 * var(--ring-gap)); z-index: -1; border-radius: 50%;
+  background: conic-gradient(var(--star-edge) 0 var(--vprog, 0%), var(--track) var(--vprog, 0%) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w)), #000 calc(100% - var(--ring-w)));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w)), #000 calc(100% - var(--ring-w)));
+}
+/* Not started yet (the "Play from verse N" bar, Continue listening): just the circle. */
+.pill .pi::before, .cont .go::before { display: none; }
+[data-buffering] .pp::before, [data-buffering] .sp::before {
+  background: conic-gradient(var(--star-edge) 0 22%, var(--track) 22% 100%);
+  animation: turn 1.6s linear infinite;
+}
 @keyframes turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  [data-buffering] .pp::before, [data-buffering] .sp::before { background: repeating-conic-gradient(var(--star-edge) 0 8deg, transparent 8deg 18deg); }
+}
 
 /* ---------- frame ---------- */
 .app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100dvh; }
@@ -256,7 +276,14 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 /* Which translation is which: a 2px rule on each block's starting side, colored by display
    order (1st lapis, 2nd gold, 3rd slate — the same colors as the key in the header), and on
    the current verse a small chip with the translator's short name. */
-.v-tr > .tr { border-inline-start: 2px solid var(--trc, var(--line)); padding-inline-start: 12px; }
+/* One block system: the word grid and each translation carry the same 3px rule on their
+   starting side (right for Arabic-script blocks, left for Latin), the same spacing, and a small
+   tag on the current verse. The word grid's rule is neutral; translations follow their order. */
+.v-tr > .tr, .wm-blk { position: relative; padding-inline-start: 14px; }
+.v-tr > .tr::before, .wm-blk::before { content: ""; position: absolute; inset-inline-start: 0; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--trc, var(--line)); }
+.wm-blk { --trc: var(--rwm); direction: rtl; margin-top: 2px; }
+.v-wm + .v-tr, .verse.has-grid .v-tr { margin-top: 10px; }
+.verse.current .wm-blk .tr-chip { direction: ltr; }
 .v-tr > .tr:nth-child(1) { --trc: var(--tr1); }
 .v-tr > .tr:nth-child(2) { --trc: var(--tr2); }
 .v-tr > .tr:nth-child(3) { --trc: var(--tr3); }
@@ -294,11 +321,21 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 .note-body p + p { margin-top: 6px; }
 .urdu .tr-notes { font-size: calc(19px * var(--scale)); }
 
-.wm-list { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; justify-content: flex-start; }
-.wm { display: inline-flex; flex-direction: column; align-items: center; text-align: center; max-width: 11em; }
-.wm .ar { font-size: calc(var(--ar-size) * 0.72); line-height: 1.7; }
-.wm .g { font-size: calc(13px * var(--scale)); color: var(--ink2); line-height: 1.3; }
-.wm .g.ur { font-family: var(--urf); font-size: calc(16px * var(--scale)); line-height: 1.8; }
+/* ---------- word meanings: the word grid ---------- */
+.verse.has-grid .v-ar { display: none; }
+.wgrid { display: flex; flex-wrap: wrap; gap: 6px 4px; direction: rtl; justify-content: flex-start; }
+.cell { display: flex; flex-direction: column; align-items: center; min-width: 58px; padding: 2px 8px 6px; margin: 0; border-radius: 12px; color: var(--ink); transition: background-color 0.18s, box-shadow 0.18s; }
+.cell .a { font-size: calc(var(--ar-size) * 0.92); line-height: 1.7; color: inherit; }
+.cell .g { align-self: stretch; max-width: 11em; padding-top: 3px; border-top: 1px solid var(--line); font: 500 calc(12.5px * var(--scale))/1.3 var(--ui); color: var(--ink2); text-align: center; }
+.cell .g.ur { font-family: var(--urf); font-size: calc(15px * var(--scale)); line-height: 1.9; }
+.cell .g:empty::after { content: "\00a0"; }
+.cell.end { min-width: 0; padding: 4px; justify-content: center; color: var(--ink2); }
+/* Following the recitation: recited normal, upcoming dimmed, the current word in gold. */
+.wgrid.timed .cell.w { color: var(--ink3); }
+.wgrid.timed .cell.w .g { color: var(--ink3); }
+.wgrid.timed .cell.w.said, .wgrid.timed .cell.w.said .g { color: var(--ink); }
+.cell.w.now, .wgrid.timed .cell.w.now { background: var(--word-tint); box-shadow: 0 0 0 1.5px var(--gold); color: var(--word-ink); }
+.cell.w.now .g, .wgrid.timed .cell.w.now .g { color: var(--ink); }
 
 .marker { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 18px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold-ink); }
 .marker::before { content: ""; width: 8px; height: 8px; background: var(--gold); transform: rotate(45deg); border-radius: 1px; }
@@ -538,7 +575,7 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 .cont small { display: block; font-size: 12px; color: var(--ink2); }
 .cont b { display: block; font-size: 16px; margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cont span { font-size: 13px; color: var(--ink2); }
-.cont .go { width: 48px; height: 48px; position: relative; isolation: isolate; display: grid; place-items: center; color: var(--play-ink); flex: none; }
+.cont .go { width: 44px; height: 44px; position: relative; isolation: isolate; display: grid; place-items: center; color: var(--play-ink); flex: none; }
 .cont .go svg { width: 18px; height: 18px; }
 .contents .picker { flex: 1 1 0; }
 .bms { border-top: 1px solid var(--line); padding: 8px 8px 12px; flex: 0 1 auto; max-height: 32%; overflow-y: auto; }
@@ -583,7 +620,7 @@ dialog::backdrop { background: var(--scrim); }
 .sw[aria-checked="true"] span { left: 22px; background: var(--surface); }
 .showing { position: relative; overflow: visible; }
 .showing.off .r .nm { opacity: 0.55; }
-.r.lift { z-index: 3; box-shadow: 0 18px 36px -12px rgba(10, 15, 30, 0.45), 0 0 0 1px var(--line); border-radius: 14px; }
+.r.lift { z-index: 3; box-shadow: var(--shadow), 0 0 0 1px var(--line); border-radius: 14px; }
 .r.lift::before { display: none; }
 .r.dragging { position: absolute; left: 0; transform-origin: 50% 50%; cursor: grabbing; }
 .slot { border-radius: 12px; box-shadow: inset 0 0 0 2px var(--accent); opacity: 0.5; background: var(--tint); }
@@ -654,25 +691,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .stage .now { margin: 26px 0; }
   .sheet { max-width: 480px; }
 }
-@media (min-width: 1280px) {
-  /* Translations in a parallel column, Arabic on the right. */
-  [data-tr] .verse { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 0 48px; align-items: start; padding: 16px 20px; margin: 2px -20px; }
-  [data-tr] .verse .v-ar { grid-column: 2; grid-row: 1 / span 2; }
-  [data-tr] .verse .v-tr { grid-column: 1; grid-row: 1; padding-top: 0.55em; }
-  [data-tr] .verse .v-wm { grid-column: 1; grid-row: 2; }
-  [data-tr] .verse.current::before, [data-tr] .verse.current::after { right: 30px; }
-}
-@media (min-width: 1680px) {
-}
-@media (min-width: 2240px) {
-  /* Up to three translations side by side. */
-  [data-tr][data-trc="2"] .verse { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr); }
-  [data-tr][data-trc="3"] .verse { grid-template-columns: minmax(0, 3fr) minmax(0, 1.5fr); }
-  [data-tr][data-trc="2"] .v-tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
-  [data-tr][data-trc="3"] .v-tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
-  [data-tr][data-trc] .v-tr .tr + .tr { margin-top: 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -719,61 +737,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
 /* (The header spans the whole unit, so the switch never moves.) */
 
-/* ---------- the wide layout: one centered unit ----------
-   [Contents ~320] [text ≤ 880–980] [panel ~320], 32px apart, centered as a whole: extra width
-   becomes outer margin, never space between the columns. The sidebars sit right beside the
-   text, sticky and scrolling inside. A collapsed sidebar frees its column and the columns
-   re-center; the header and the docked player keep the full unit's width (below), so the
-   controls in them never move. */
-@media (min-width: 900px) {
-  :root { --cw: 300px; }
-  .app {
-    justify-content: center; column-gap: var(--gap); padding: 0 24px;
-    grid-template-columns: minmax(0, var(--tw));
-  }
-  [data-contents] .app { grid-template-columns: var(--cw) minmax(0, var(--tw)); }
-  [data-panel] .app { grid-template-columns: minmax(0, var(--tw)) var(--pw); }
-  [data-contents][data-panel] .app { grid-template-columns: var(--cw) minmax(0, var(--tw)) var(--pw); }
-  [data-contents] .main { grid-column: 2; }
-  .contents { grid-column: 1; grid-row: 2; }
-  [data-panel] .side { display: block; grid-column: -2 / -1; grid-row: 2; overflow-y: auto; padding: 18px 20px 24px; }
-  .contents, [data-panel] .side {
-    position: sticky; top: calc(var(--topbar-h) + env(safe-area-inset-top) + 8px);
-    height: calc(100dvh - var(--topbar-h) - env(safe-area-inset-top) - 8px - var(--dock-space));
-    background: var(--surface); border-radius: 16px; box-shadow: 0 0 0 1px var(--line);
-  }
-  :root { --dock-space: calc(96px + env(safe-area-inset-bottom)); }
-  [data-mode="listen"] { --dock-space: 16px; } /* Listen's player sits beside, under the text */
-  .reader { max-width: none; padding-left: 12px; padding-right: 12px; }
-  [data-tr] .reader { max-width: none; }
-  .topbar { padding-left: 4px; padding-right: 4px; }
-
-  /* The unit's width, for the fixed parts (player, Listen stage). */
-  :root { --unit-w: min(calc(100vw - 48px), var(--tw)); }
-  [data-contents] { --unit-w: min(calc(100vw - 48px), var(--cw) + var(--gap) + var(--tw)); }
-  [data-panel] { --unit-w: min(calc(100vw - 48px), var(--tw) + var(--gap) + var(--pw)); }
-  [data-contents][data-panel] { --unit-w: min(calc(100vw - 48px), var(--cw) + var(--tw) + var(--pw) + 2 * var(--gap)); }
-  :root { --unit-x: calc((100vw - var(--unit-w)) / 2); }
-  .playdock { left: var(--unit-x); right: var(--unit-x); padding-left: 0; padding-right: 0; }
-  .playdock .slim, .playdock .pill { max-width: none; }
-  /* Listen: the stage and player fill the text column (Contents, if open, beside them). */
-  .listen { left: var(--unit-x); right: var(--unit-x); }
-  [data-contents] .listen { left: calc(var(--unit-x) + var(--cw) + var(--gap)); }
-  .player { left: var(--unit-x); right: var(--unit-x); }
-  [data-contents] .player { left: calc(var(--unit-x) + var(--cw) + var(--gap)); }
-  .focus-hint { left: var(--unit-x); }
-}
-@media (min-width: 1280px) {
-  :root { --cw: 320px; }
-  [data-contents][data-panel] { --tw: 880px; }
-}
-@media (min-width: 1680px) {
-  :root { --cw: 340px; }
-}
-/* Very wide screens with several translations side by side get a wider text column. */
-@media (min-width: 2240px) {
-  [data-tr]:not([data-trc="1"]) { --tw: 1240px; }
-}
 
 /* Narrow screens (320px, or 400% zoom): the title truncates and the switch gets compact, so
    the settings button always fits. */
@@ -794,18 +757,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .hint .sug { display: block; width: 100%; min-height: 36px; padding: 0 4px; text-align: left; color: var(--accent-ink); font-weight: 600; font-size: 14px; border-radius: 8px; }
 .hint .sug:not(.first) { color: var(--ink2); font-weight: 500; }
 .hint .sug:hover { background: var(--raised); }
-
-/* The header keeps the full unit's width at each size, whatever is open or which mode is on,
-   so the Read | Listen switch never moves (the columns under it re-center on their own). */
-@media (min-width: 900px) {
-  :root { --head-w: min(calc(100vw - 48px), var(--cw) + var(--gap) + 980px); }
-  .topbar { justify-self: center; width: var(--head-w); }
-  /* The docked player lines up with the header. */
-  .playdock { left: calc((100vw - var(--head-w)) / 2); right: calc((100vw - var(--head-w)) / 2); }
-}
-@media (min-width: 1280px) {
-  :root { --head-w: min(calc(100vw - 48px), var(--cw) + 880px + var(--pw) + 2 * var(--gap)); }
-}
 
 /* ---------- translations: your list + the Add picker ---------- */
 .empty-note { font-size: 15px; color: var(--ink2); padding: 8px 16px 12px; }
@@ -837,3 +788,124 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .install .ib-no { color: var(--ink2); }
 [data-mode="listen"] .install { bottom: calc(var(--lp-h, 200px) + 8px); }
 .toast { position: fixed; z-index: 40; left: 50%; top: calc(var(--topbar-h) + 10px + env(safe-area-inset-top)); transform: translateX(-50%); padding: 8px 14px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow), 0 0 0 1px var(--line); font-size: 13px; color: var(--ink2); }
+#settings-main .tr-intro { padding-top: 0; padding-bottom: 8px; }
+#settings-main .after-tr { margin-top: 20px; }
+
+/* ---------- wide screens: docked sidebars ----------
+   The header spans the window. Contents docks to the left edge and the info panel to the
+   right, full height under the header, each behind a 1px rule and scrolling inside; the text
+   takes the middle (32px inner padding) and keeps a comfortable measure. The player, the
+   Listen stage and the slim bar span the middle only. */
+@media (min-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  [data-contents] .app { grid-template-columns: var(--cw) minmax(0, 1fr); }
+  [data-panel] .app { grid-template-columns: minmax(0, 1fr) var(--pw); }
+  [data-contents][data-panel] .app { grid-template-columns: var(--cw) minmax(0, 1fr) var(--pw); }
+  [data-contents] { --L: var(--cw); }
+  [data-panel] { --R: var(--pw); }
+  .topbar { box-shadow: 0 1px 0 var(--line); padding-left: 16px; padding-right: 12px; }
+  [data-contents] .main { grid-column: 2; }
+  .contents { grid-column: 1; grid-row: 2; }
+  [data-panel] .side { display: block; grid-column: -2 / -1; grid-row: 2; overflow-y: auto; padding: 18px 20px 24px; }
+  .contents, [data-panel] .side {
+    position: sticky; top: calc(var(--topbar-h) + env(safe-area-inset-top));
+    height: calc(100dvh - var(--topbar-h) - env(safe-area-inset-top));
+    background: var(--surface);
+  }
+  .contents { box-shadow: 1px 0 0 var(--line); }
+  [data-panel] .side { box-shadow: -1px 0 0 var(--line); }
+  .main { container-type: inline-size; }
+  /* Arabic alone: a measure of 920px; with translations beside it, 1400px. */
+  .reader { max-width: min(100%, 920px); margin-inline: auto; padding-left: 32px; padding-right: 32px; }
+  [data-tr] .reader { max-width: min(100%, 1400px); }
+  /* The fixed parts span the middle, 24px in from the sidebars. */
+  .playdock { left: calc(var(--L) + 24px); right: calc(var(--R) + 24px); padding-left: 0; padding-right: 0; }
+  .playdock .slim, .playdock .pill { max-width: none; }
+  .listen { left: var(--L); right: var(--R); }
+  .player { left: calc(var(--L) + 24px); right: calc(var(--R) + 24px); }
+  .follow-chip { left: calc(var(--L) + (100vw - var(--L) - var(--R)) / 2); }
+  .focus-hint { left: calc(var(--L) + 24px); }
+  /* The sidebar toggles, one on each side above its sidebar: tinted while open. */
+  .ib.edge[aria-pressed="true"] { background: var(--tint); color: var(--accent-ink); }
+  .ib.edge:disabled { opacity: 0.35; }
+}
+@media (max-width: 899px) { .ib.edge { display: none; } }
+@media (min-width: 1680px) { :root { --cw: 300px; --pw: 320px; } }
+@media (min-width: 2240px) {
+  :root { --cw: 320px; --pw: 360px; }
+  [data-tr] .reader { max-width: min(100%, 1700px); }
+}
+/* Translations beside the Arabic once the middle is 640px wide (Arabic ~1.15fr, translations
+   1fr, 48px apart); narrower, they go under it. */
+@container (min-width: 640px) {
+  [data-tr] .verse { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 0 48px; align-items: start; padding: 16px 20px; margin: 2px -20px; }
+  [data-tr] .verse .v-ar { grid-column: 2; grid-row: 1 / span 2; }
+  [data-tr] .verse .v-tr { grid-column: 1; grid-row: 1; padding-top: 0.55em; }
+  [data-tr] .verse .v-wm { grid-column: 1; grid-row: 2; }
+  /* The word grid takes the Arabic side, translations beside it. */
+  [data-tr] .verse.has-grid { display: grid; }
+  [data-tr] .verse.has-grid .v-wm { grid-column: 2; grid-row: 1 / span 2; }
+  [data-tr] .verse.has-grid .v-tr { margin-top: 0; }
+  [data-tr] .verse.current::before, [data-tr] .verse.current::after { right: 30px; }
+}
+/* Very wide: several translations side by side, each its own column next to the Arabic. */
+@media (min-width: 2240px) {
+  [data-tr][data-trc="2"] .verse { grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr); }
+  [data-tr][data-trc="3"] .verse { grid-template-columns: minmax(0, 3fr) minmax(0, 1.15fr); }
+  [data-tr][data-trc="2"] .v-tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
+  [data-tr][data-trc="3"] .v-tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
+  [data-tr][data-trc] .v-tr .tr + .tr { margin-top: 0; }
+}
+
+/* Chapter time: "m:ss / m:ss" (the chapter as one track). */
+.ptime { font-size: 12px; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ptime:empty { display: none; }
+.slim .ptime { padding: 0 6px; }
+.player .ptime { text-align: right; margin-top: 6px; }
+[data-landscape] .player .ptime { position: absolute; right: 16px; top: 10px; margin: 0; }
+@media (max-width: 380px) { .slim .ptime { display: none; } }
+
+/* ---------- seekbars, like a normal player's ---------- */
+[data-seek] { touch-action: none; }
+[data-seek]::before { inset: -20px 0; } /* at least 44px tall to grab */
+/* The thumb (the gold khatam): always in Listen; on the slim bar it appears on hover, focus
+   and while dragging — always on touch screens. */
+.prog .d { z-index: 1; transition: transform 0.15s var(--ease); }
+[data-seek].dragging .d { transform: scale(1.35); }
+.slim { overflow: visible; }
+.slim .prog { left: 16px; right: 16px; height: 4px; border-radius: 2px; }
+.slim .prog .d { opacity: 0; transition: opacity 0.15s; }
+.slim .prog:hover .d, .slim .prog:focus-visible .d, .slim .prog.dragging .d { opacity: 1; }
+@media (hover: none) { .slim .prog .d { opacity: 1; } }
+.slim .vprog { left: 16px; right: 16px; }
+
+/* ---------- Settings: grouped inset lists (one row height, values and switches at the end) ---------- */
+#settings-sheet .sec { font: 600 13px var(--ui); color: var(--ink2); padding: 18px 16px 7px; }
+#settings-sheet .grpd { border-radius: 14px; }
+#settings-sheet .r { min-height: 52px; font-size: 16px; }
+#settings-sheet .r .nm b { font-weight: 500; }
+#settings-sheet .r > .nm:not(:has(b)) { font-size: 16px; }
+.seg { display: flex; flex: none; padding: 2px; border-radius: 10px; background: var(--raised); }
+.seg button { min-height: 36px; padding: 0 12px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--ink2); }
+.seg button[aria-checked="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
+.trgrp .showing { position: relative; }
+.trgrp .showing:empty { display: none; }
+.trgrp .showing:not([hidden]) + .r::before, .trgrp .showing:not([hidden]) ~ .add-tr::before, .trgrp .empty-row:not([hidden]) + .add-tr::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: var(--line); }
+.empty-row .nm { color: var(--ink2); }
+.r.add-tr { width: 100%; color: var(--accent-ink); font-weight: 600; gap: 12px; text-align: left; }
+.r.add-tr svg { width: 20px; height: 20px; }
+.reciter-row .nm { font-size: 16px; }
+.size-row { flex-direction: column; align-items: stretch; padding-top: 10px; padding-bottom: 12px; }
+.size-line { display: flex; align-items: center; gap: 12px; color: var(--ink2); }
+.size-line .a-sm { font-size: 13px; }
+.size-line .a-lg { font-size: 22px; }
+.size-line input { flex: 1; }
+#settings-sheet .size-sample { margin-top: 6px; }
+#settings-sheet .credit { text-align: center; }
+/* The word grid is the verse: it comes first, then the translations. */
+.verse.has-grid { display: flex; flex-direction: column; }
+.verse.has-grid .v-wm { order: -1; }
+.verse.has-grid .vbar { order: 5; }
+#settings-sheet .r.add-tr { margin: 0; border-radius: 0; box-shadow: none; background: var(--surface); min-height: 52px; font-size: 16px; }
+.version { font-size: 12px; color: var(--ink2); text-align: center; padding: 6px 0 4px; user-select: text; -webkit-user-select: text; }
+#settings-sheet .r.add-tr span { font-size: 16px; }

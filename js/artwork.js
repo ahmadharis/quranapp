@@ -1,16 +1,16 @@
 // Now-playing artwork for the lock screen and car: one card per chapter, drawn on a canvas —
-// lapis ground, gold frame, the eight-pointed star, the chapter's Arabic name in ManzoorNaskh,
+// green ground, gold frame, the eight-pointed star, the chapter's Arabic name in ManzoorNaskh,
 // "Chapter N" and the parts it spans. Small sizes show just the name and number. Drawn once per
 // chapter (after the font has loaded) and kept as blob URLs; it never changes between verses.
 
 import { chapterArabic, partsLabel } from "./util.js";
 
 const SIZES = [96, 256, 512];
-const LAPIS = "#1F3A68";
+const GREEN = "#1F5A45";
 const GOLD = "#D9B45A";
 const GOLD_TEXT = "#E6C77A";
 const NAME = "#F4EDDD";
-const SUB = "#C9D3E6";
+const SUB = "#D3E2D8";
 const UI_FONT = `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif`;
 
 const cache = new Map(); // ch -> Promise<[{src, sizes, type}]>
@@ -45,7 +45,7 @@ function draw(ch, s) {
   c.width = c.height = s;
   const g = c.getContext("2d");
   const small = s < 160;
-  g.fillStyle = LAPIS;
+  g.fillStyle = GREEN;
   g.fillRect(0, 0, s, s); // square: the system rounds the corners itself
   const inset = Math.round(s * 0.06);
   g.strokeStyle = GOLD;

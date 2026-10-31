@@ -1,13 +1,15 @@
-// Settings: reciter, text size, appearance, and Translations (a sub-view: your list of shown
-// translations — drag a grip to reorder, × to remove — with an "Add translation" picker, and
-// word meanings). Also the "⋯" sheet of the player: reciter, repeat and speed.
+// Settings, one page: reciter; translations (your list of shown translations — drag a grip to
+// reorder, × to remove — an "Add translation" picker, and word meanings); follow words, Nazira
+// mode, text size, appearance, install. Also the "⋯" sheet of the player: reciter, repeat and
+// speed.
 
 import { RECITERS } from "./player.js";
+import { VERSION, BUILD } from "./version.js";
 import { TRANSLATIONS, WORD_MEANINGS } from "./api.js";
 import { prefs, savePrefs, SPEEDS } from "./prefs.js";
 import { $, $$, h, icon } from "./util.js";
 
-const THEME_COLORS = { light: "#F2F4F1", dark: "#0E1220" }; // --bg of each theme
+const THEME_COLORS = { light: "#F4F4EE", dark: "#161514" }; // --bg of each theme
 const tInfo = (id) => TRANSLATIONS.find((t) => t.id === id);
 
 // Radio groups: one tab stop; arrow keys move the choice (WAI-ARIA radio group pattern).
@@ -83,8 +85,8 @@ export function initSettings(ctx) {
     applyScale();
     savePrefs();
   });
-  const themes = h("div.segmented", { role: "radiogroup", "aria-label": "Appearance" });
-  for (const [v, label] of [["auto", "Automatic"], ["light", "Light"], ["dark", "Dark"]]) {
+  const themes = h("div.seg", { role: "radiogroup", "aria-label": "Theme" });
+  for (const [v, label] of [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]]) {
     themes.append(
       h("button", {
         type: "button",
@@ -101,7 +103,7 @@ export function initSettings(ctx) {
     );
   }
   arrowRadios(themes);
-  const followRow = h("div.r", {}, h("span.nm", {}, h("b", { text: "Follow words" }), h("span", { text: "Lights each word as it is recited, in Read and Listen" })));
+  const followRow = h("div.r", {}, h("span.nm", {}, h("b", { text: "Follow words" })));
   const followSw = sw(prefs.followWords, "Follow words", (on) => {
     prefs.followWords = on;
     savePrefs();
@@ -110,7 +112,7 @@ export function initSettings(ctx) {
   });
   followRow.append(followSw);
   // Nazira mode, as alislam's app names it: a distraction-free page of Arabic.
-  const naziraRow = h("div.r", {}, h("span.nm", {}, h("b", { text: "Nazira mode" }), h("span", { text: "Arabic only, verses flowing together like a printed page" })));
+  const naziraRow = h("div.r", { title: "Arabic only, verses flowing together like a printed page" }, h("span.nm", {}, h("b", { text: "Nazira mode" })));
   function renderNazira() {
     naziraRow.querySelector(".sw")?.remove();
     naziraRow.append(
@@ -125,56 +127,58 @@ export function initSettings(ctx) {
     );
   }
   // Install app: for anyone who dismissed the banner (shown only while installable).
-  const installRow = h("button.r.nav-row.install-row", { type: "button", hidden: true, onclick: () => (sheet.close(), ctx.install.open()) }, h("span.nm", {}, h("b", { text: "Install app" }), h("span", { text: "Keeps playing with the screen off, works offline" })), icon("i-right", "ch"));
+  const installRow = h("button.r.nav-row.install-row", { type: "button", hidden: true, onclick: () => (sheet.close(), ctx.install.open()) }, h("span.nm", {}, h("b", { text: "Install app" })), icon("i-right", "ch"));
   const renderInstall = () => (installRow.hidden = !ctx.install?.installable());
   ctx.bus.addEventListener("installable", renderInstall);
-  const trRow = h("button.r.nav-row", { type: "button", onclick: () => showView("translations") }, h("span.nm", {}, h("b", { text: "Translations" }), h("span#tr-summary")), icon("i-right", "ch"));
+
+  // ---------- translations (a section of Settings) ----------
+  const live = $("#live");
+  // Your list: only the translations shown, in display order (drag to reorder, × to remove).
+  // "Add translation" opens a picker of all of them; adding puts one at the end of the list.
+  const showingGrp = h("div.showing");
+  const emptyNote = h("div.r.empty-row", {}, h("span.nm", { text: "No translations" }));
+  const addBtn = h("button.r.add-tr", { type: "button", onclick: () => showView("add") }, icon("i-plus"), h("span", { text: "Add translation" }));
+  const pickerGroups = h("div.tr-picker");
+  // Word meanings: one Off / English / Urdu control.
+  const wmSeg = h("div.seg", { role: "radiogroup", "aria-label": "Word meanings language" });
+  for (const w of WORD_MEANINGS) {
+    wmSeg.append(h("button", { type: "button", role: "radio", "data-wm": w.id, title: w.by ?? "", text: w.label, onclick: () => pickWm(w.id) }));
+  }
+  arrowRadios(wmSeg);
+  // Reciter: one row showing the choice; the list opens as its own view.
+  const reciterValue = h("span.nm");
+  const reciterRow = h("button.r.nav-row.reciter-row", { type: "button", "aria-label": "Reciter", onclick: () => showView("reciter") }, reciterValue, icon("i-right", "ch"));
 
   const mainView = h(
     "div.view#settings-main",
     {},
     h("div.sheet-head", {}, h("h2#settings-title", { text: "Settings" }), h("button.ib", { type: "button", "data-close": true, "aria-label": "Close" }, icon("i-close"))),
-    h("div.grpd", {}, naziraRow, trRow, followRow),
-    h("p.cap#reciter-legend", { text: "Reciter" }),
-    h("div.grpd", {}, reciterList),
-    h("p.cap", { text: "Text size" }),
-    h("div.grpd.pad", {}, size, h("p.size-sample.ar", { lang: "ar", dir: "rtl", text: "بِسۡمِ اللّٰہِ الرَّحۡمٰنِ الرَّحِیۡمِ" })),
-    h("p.cap", { text: "Appearance" }),
-    themes,
+    h("p.sec#reciter-legend", { text: "Reciter" }),
+    h("div.grpd", {}, reciterRow),
+    h("p.sec#tr-cap", { text: "Translations" }),
+    h("div.grpd.trgrp", {}, showingGrp, emptyNote, addBtn, h("span.sr-only#grip-help", { text: "To reorder, drag the handle, or press Space on it, move with the arrow keys, and press Space again." })),
+    h("p.sec#wm-cap", { text: "Word meanings" }),
+    h("div.grpd", {}, h("div.r", {}, h("span.nm", { text: "Language" }), wmSeg)),
+    h("p.sec", { text: "Reading" }),
+    h(
+      "div.grpd",
+      {},
+      followRow,
+      naziraRow,
+      h(
+        "div.r.size-row",
+        {},
+        h("div.size-line", {}, h("span.a-sm", { "aria-hidden": "true", text: "A" }), size, h("span.a-lg", { "aria-hidden": "true", text: "A" })),
+        h("p.size-sample.ar", { lang: "ar", dir: "rtl", text: "بِسۡمِ اللّٰہِ الرَّحۡمٰنِ الرَّحِیۡمِ" }),
+      ),
+    ),
+    h("p.sec", { text: "Appearance" }),
+    h("div.grpd", {}, h("div.r", {}, h("span.nm", { text: "Theme" }), themes)),
     h("div.grpd.install-grp", {}, installRow),
     h("p.credit", {}, "Text, translations and recitation from ", h("a", { href: "https://www.alislam.org/quran/app/", target: "_blank", rel: "noopener", text: "alislam.org" }), "."),
+    h("p.version", { text: `Version ${VERSION} · build ${BUILD}` }),
   );
 
-  // ---------- translations view ----------
-  const live = $("#live");
-  // Your list: only the translations shown, in display order (drag to reorder, × to remove).
-  // "Add translation" opens a picker of all of them; adding puts one at the end of the list.
-  const showingGrp = h("div.grpd.showing");
-  const showingFoot = h("p.foot");
-  const emptyNote = h("p.empty-note", { text: "No translations. Add one to show it under each verse." });
-  const addBtn = h("button.add-tr", { type: "button", onclick: () => showView("add") }, h("span", { "aria-hidden": "true", text: "+" }), "Add translation");
-  const pickerGroups = h("div.tr-picker");
-  const wmValue = h("span.val");
-  const wmMenu = h("div.menu", { role: "menu", hidden: true, "aria-label": "Word meanings" });
-  const wmBtn = h("button.r", { type: "button", "aria-haspopup": "menu", "aria-expanded": "false" }, h("span.nm", {}, h("b", { text: "Word meanings" }), h("span#wm-by")), wmValue, icon("i-updown", "ch"));
-
-  const trView = h(
-    "div.view#settings-tr",
-    { hidden: true },
-    h(
-      "div.sheet-head",
-      {},
-      h("button.back", { type: "button", onclick: () => showView("main") }, icon("i-back"), h("span.sr-only", { text: "Back to settings" })),
-      h("h2", { text: "Translations" }),
-      h("button.ib", { type: "button", "data-close": true, "aria-label": "Close" }, icon("i-close")),
-    ),
-    h("p.foot.intro", { text: "Shown under each verse in Read, in this order." }),
-    emptyNote,
-    showingGrp,
-    showingFoot,
-    addBtn,
-    h("div.grpd.wm-row", {}, wmBtn, wmMenu),
-  );
   // The picker: every translation, grouped; a tap adds or removes one, nothing moves.
   const addView = h(
     "div.view#settings-add",
@@ -182,24 +186,40 @@ export function initSettings(ctx) {
     h(
       "div.sheet-head",
       {},
-      h("button.back", { type: "button", onclick: () => showView("translations") }, icon("i-back"), h("span.sr-only", { text: "Back to translations" })),
+      h("button.back", { type: "button", onclick: () => showView("main") }, icon("i-back"), h("span.sr-only", { text: "Back to settings" })),
       h("h2", { text: "Add translation" }),
-      h("button.done", { type: "button", text: "Done", onclick: () => showView("translations") }),
+      h("button.done", { type: "button", text: "Done", onclick: () => showView("main") }),
     ),
     pickerGroups,
   );
-  sheet.append(mainView, trView, addView);
+  const reciterView = h(
+    "div.view#settings-reciter",
+    { hidden: true },
+    h(
+      "div.sheet-head",
+      {},
+      h("button.back", { type: "button", onclick: () => showView("main") }, icon("i-back"), h("span.sr-only", { text: "Back to settings" })),
+      h("h2", { text: "Reciter" }),
+      h("button.done", { type: "button", text: "Done", onclick: () => showView("main") }),
+    ),
+    h("div.grpd", {}, reciterList),
+  );
+  sheet.append(mainView, addView, reciterView);
 
+  let cameFrom = "main";
   function showView(name) {
     mainView.hidden = name !== "main";
-    trView.hidden = name !== "translations";
     addView.hidden = name !== "add";
+    reciterView.hidden = name !== "reciter";
     sheet.scrollTop = 0;
-    if (name === "translations") renderTranslations();
-    else if (name === "add") renderPicker();
+    if (name === "add") renderPicker();
     else renderMain();
-    const view = { main: mainView, translations: trView, add: addView }[name];
-    $(name === "main" ? ".nav-row" : name === "add" ? ".pick" : ".back", view)?.focus();
+    // Back from a sub-view, focus returns to the row that opened it.
+    if (name === "add") $(".pick", addView)?.focus();
+    else if (name === "reciter") $('[aria-checked="true"]', reciterList)?.focus();
+    else if (cameFrom === "add") addBtn.focus();
+    else if (cameFrom === "reciter") reciterRow.focus();
+    cameFrom = name;
   }
 
   const GROUPS = [
@@ -287,53 +307,15 @@ export function initSettings(ctx) {
     emptyNote.hidden = !!list.length;
     showingGrp.hidden = !list.length;
     showingGrp.replaceChildren(...list.map((id) => trRowEl(id)));
-    showingFoot.hidden = list.length < 2;
-    showingFoot.replaceChildren(h("span#grip-help", { text: "Drag ⠿ to change the order." }));
-    const wm = WORD_MEANINGS.find((w) => w.id === prefs.wordMeanings);
-    wmValue.textContent = wm.label;
-    $("#wm-by", trView).textContent = wm.by ?? "";
-    wmMenu.replaceChildren(
-      ...WORD_MEANINGS.map((w) =>
-        h(
-          "button",
-          { type: "button", role: "menuitemradio", "aria-checked": String(w.id === prefs.wordMeanings), onclick: () => pickWm(w.id) },
-          h("span", {}, h("span", { text: w.label }), w.by ? h("small", { text: w.by }) : null),
-          w.id === prefs.wordMeanings ? icon("i-check") : null,
-        ),
-      ),
-    );
+    syncRadios(wmSeg, (b) => b.dataset.wm === prefs.wordMeanings);
   }
 
   function pickWm(id) {
+    if (prefs.wordMeanings === id) return;
     prefs.wordMeanings = id;
-    closeWm();
     changed();
-    renderTranslations();
-    wmBtn.focus();
+    syncRadios(wmSeg, (b) => b.dataset.wm === id);
   }
-  const closeWm = () => {
-    wmMenu.hidden = true;
-    wmBtn.setAttribute("aria-expanded", "false");
-  };
-  wmBtn.addEventListener("click", () => {
-    const open = wmMenu.hidden;
-    wmMenu.hidden = !open;
-    wmBtn.setAttribute("aria-expanded", String(open));
-    if (open) ($('[aria-checked="true"]', wmMenu) ?? wmMenu.firstChild)?.focus();
-  });
-  wmMenu.addEventListener("keydown", (e) => {
-    const items = $$("[role=menuitemradio]", wmMenu);
-    const i = items.indexOf(document.activeElement);
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      closeWm();
-      wmBtn.focus();
-    }
-  });
 
   // Reordering "Showing". Pointer: drag the grip — the row lifts and a slot shows where it will
   // land. Keyboard: the grip is a button — Space picks up, ↑/↓ move, Space drops, Esc cancels.
@@ -422,7 +404,7 @@ export function initSettings(ctx) {
         const others = rows.filter((r) => r !== row);
         others[target] ? others[target].before(slot) : showingGrp.append(slot);
         const firstName = tInfo(prefs.translations.list.filter((x) => x !== id)[0] ?? id).name;
-        showingFoot.firstChild.textContent = target === 0 ? `Drop to show ${tInfo(id).lang.split(",")[0]} first.` : `Drop to show it after ${firstName}.`;
+        live.textContent = target === 0 ? `Drop to show ${tInfo(id).name} first.` : `Drop to show it after ${firstName}.`;
       };
       const onUp = () => {
         grip.removeEventListener("pointermove", onMove);
@@ -481,10 +463,10 @@ export function initSettings(ctx) {
     renderInstall();
     renderNazira();
     syncRadios(reciterList, (b) => b.dataset.reciter === player.reciter);
+    reciterValue.textContent = RECITERS.find((r) => r.id === player.reciter)?.name ?? "";
     size.value = prefs.scale;
     syncRadios(themes, (b) => b.dataset.themeValue === prefs.theme);
-    const shown = prefs.translations.list.map((id) => tInfo(id).name);
-    $("#tr-summary", mainView).textContent = shown.length ? shown.join(", ") : "Off";
+    renderTranslations();
   }
 
   function openSettings(view = "main") {
@@ -496,10 +478,12 @@ export function initSettings(ctx) {
   sheet.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !addView.hidden) {
       e.preventDefault();
-      showView("translations");
-    } else if (e.key === "Escape" && !trView.hidden && wmMenu.hidden && !held) {
+      showView("main");
+    } else if (e.key === "Escape" && !reciterView.hidden) {
       e.preventDefault();
       showView("main");
+    } else if (e.key === "Escape" && held) {
+      e.preventDefault(); // the grip or the menu handles it; the sheet stays open
     }
   });
 

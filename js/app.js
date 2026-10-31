@@ -9,6 +9,8 @@ import { getChapter, TRANSLATIONS } from "./api.js";
 import { prefs, savePrefs, shownTranslations } from "./prefs.js";
 import { $, $$, key, clamp, verseCount, chapterName, partOf } from "./util.js";
 import { WordFollower } from "./words.js";
+import { VERSION, BUILD } from "./version.js";
+import { loadDurations, chapterTime, locate, clock } from "./durations.js";
 import { bookmarks, isBookmarked, toggleBookmark } from "./bookmarks.js";
 import { chapterArtwork } from "./artwork.js";
 import { initReader } from "./reader.js";
@@ -160,24 +162,71 @@ for (const g of modeGroups) {
 
 // ---------- player controls ----------
 for (const b of $$("[data-play]")) b.addEventListener("click", () => ctx.togglePlay());
-for (const b of $$("[data-prev]")) b.addEventListener("click", () => ctx.step(-1));
-for (const b of $$("[data-next]")) b.addEventListener("click", () => ctx.step(1));
+// ⏮ ⏭ work like a music player's, on every player: the chapter is the track.
+for (const b of $$("[data-prev]")) b.addEventListener("click", () => ctx.chapterStep(-1));
+for (const b of $$("[data-next]")) b.addEventListener("click", () => ctx.chapterStep(1));
+// The seekbars, like a normal player's: drag the thumb (mouse or touch) — the time label
+// follows live, and the seek happens on release; a tap or click seeks at once. Keyboard: a
+// slider, ←/→ ∓/±10 s, Page Down/Up ∓/±60 s, Home/End the chapter's start/end.
+let scrubbing = null; // {bar, f} while a bar is being dragged
+function showScrub(bar, f) {
+  const ct = chapterTime(player.reciter, ctx.current.ch, 1, 0);
+  const pct = `${f * 100}%`;
+  bar.firstChild.style.width = pct;
+  const d = bar.querySelector(".d");
+  if (d) d.style.left = pct;
+  if (ct) for (const el of $$("[data-ptime]")) el.textContent = `${clock(f * ct.duration)} / ${clock(ct.duration)}`;
+}
 for (const bar of $$("[data-seek]")) {
-  bar.addEventListener("click", (e) => {
+  const fAt = (x) => {
     const r = bar.getBoundingClientRect();
-    const n = verseCount(ctx.current.ch);
-    ctx.goTo({ ch: ctx.current.ch, v: clamp(Math.floor(((e.clientX - r.left) / r.width) * n) + 1, 1, n) });
+    return clamp((x - r.left) / r.width, 0, 1);
+  };
+  bar.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    try {
+      bar.setPointerCapture(e.pointerId); // keep the drag even off the bar
+    } catch {}
+    scrubbing = { bar, f: fAt(e.clientX) };
+    bar.classList.add("dragging");
+    showScrub(bar, scrubbing.f);
   });
-  // A slider in verse steps: ←/↓ previous, →/↑ next, Page keys ten, Home/End.
+  bar.addEventListener("pointermove", (e) => {
+    if (scrubbing?.bar !== bar) return;
+    scrubbing.f = fAt(e.clientX);
+    showScrub(bar, scrubbing.f);
+  });
+  const release = (e) => {
+    if (scrubbing?.bar !== bar) return;
+    const f = e.type === "pointercancel" ? null : scrubbing.f;
+    scrubbing = null;
+    bar.classList.remove("dragging");
+    if (f != null) seekChapterFraction(f);
+    else renderProgress();
+  };
+  bar.addEventListener("pointerup", release);
+  bar.addEventListener("pointercancel", release);
   bar.tabIndex = 0;
   bar.addEventListener("keydown", (e) => {
-    const { ch, v } = ctx.current;
-    const n = verseCount(ch);
-    const to = { ArrowLeft: v - 1, ArrowDown: v - 1, ArrowRight: v + 1, ArrowUp: v + 1, PageDown: v - 10, PageUp: v + 10, Home: 1, End: n }[e.key];
-    if (to === undefined) return;
+    const ct = nowInChapter();
+    if (!ct) {
+      // No durations yet: verse steps.
+      const { ch, v } = ctx.current;
+      const n = verseCount(ch);
+      const to = { ArrowLeft: v - 1, ArrowDown: v - 1, ArrowRight: v + 1, ArrowUp: v + 1, PageDown: v - 10, PageUp: v + 10, Home: 1, End: n }[e.key];
+      if (to === undefined) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (clamp(to, 1, n) !== v) ctx.goTo({ ch, v: clamp(to, 1, n) }, { push: false });
+      return;
+    }
+    const step = { ArrowLeft: -10000, ArrowDown: -10000, ArrowRight: 10000, ArrowUp: 10000, PageDown: -60000, PageUp: 60000 }[e.key];
+    const to = e.key === "Home" ? 0 : e.key === "End" ? ct.duration - 1 : step != null ? ct.position + step : null;
+    if (to == null) return;
     e.preventDefault();
     e.stopPropagation();
-    if (clamp(to, 1, n) !== v) ctx.goTo({ ch, v: clamp(to, 1, n) });
+    seekChapterFraction(clamp(to / ct.duration, 0, 1));
   });
 }
 $("#pill").addEventListener("click", () => {
@@ -199,17 +248,90 @@ $("#slim-collapse").addEventListener("click", () => {
 
 const reciterName = () => RECITERS.find((r) => r.id === player.reciter)?.name ?? "";
 
+// ---------- the chapter as one track ----------
+// The progress bars, the time shown and the lock screen/car all follow the whole chapter: the
+// verses' file lengths (data/durations) laid end to end. Until those are loaded, by verse.
+player.timeline = (seg, ms) => chapterTime(player.reciter, seg.ch, seg.v, ms);
+const loadTimeline = () => loadDurations(player.reciter).then(() => renderProgress());
+loadTimeline();
+bus.addEventListener("reciter", loadTimeline);
+
+// Where the chapter is now: {duration, position} in ms, or null.
+function nowInChapter() {
+  const { ch, v } = ctx.current;
+  const vt = player.verseTime();
+  const ms = vt && vt.ch === ch && vt.v === v ? vt.ms : 0;
+  return chapterTime(player.reciter, ch, v, ms);
+}
+
+// Go to a point of the current chapter: the verse there, and the moment inside it when that
+// verse is already loaded. Without durations: the verse at that share of the verses.
+function seekChapterFraction(f) {
+  const { ch } = ctx.current;
+  const ct = chapterTime(player.reciter, ch, 1, 0);
+  const at = ct ? locate(player.reciter, ch, f * ct.duration) : null;
+  const n = verseCount(ch);
+  const pos = { ch, v: at ? at.v : clamp(Math.floor(f * n) + 1, 1, n) };
+  userMoved();
+  if (player.started) {
+    player.seekTo(pos, at ? at.ms : 0); // exact moment when that verse is loaded
+    if (!player.playing && ctx.mode === "read") ctx.reader.showChapter(pos.ch, pos.v);
+  } else ctx.goTo(pos, { push: false });
+}
+
+// Previous/next chapter: previous restarts the chapter when more than 3 s in, as music players
+// do. The same for the in-app ⏮ ⏭, the lock screen and the car.
+ctx.chapterStep = (d) => {
+  const { ch } = ctx.current;
+  if (d < 0) {
+    const ct = nowInChapter();
+    const inMs = ct ? ct.position : ctx.current.v > 1 ? Infinity : 0;
+    if (inMs > 3000) {
+      userMoved();
+      if (player.started) player.seekTo({ ch, v: 1 }, 0);
+      else ctx.goTo({ ch, v: 1 }, { push: false });
+      if (!player.playing && ctx.mode === "read") ctx.reader.showChapter(ch, 1);
+      return;
+    }
+  }
+  const to = ch + (d < 0 ? -1 : 1);
+  if (to < 1 || to > 114) return;
+  userMoved();
+  ctx.goTo({ ch: to, v: 1 }, { push: false });
+};
+
 function renderProgress(fraction = 0) {
   const { ch, v } = ctx.current;
   const n = verseCount(ch);
-  const pct = `${clamp(((v - 1 + fraction) / n) * 100, 0, 100)}%`;
+  const ct = nowInChapter();
+  const pct = `${clamp(ct ? (ct.position / ct.duration) * 100 : ((v - 1 + fraction) / n) * 100, 0, 100)}%`;
+  if (scrubbing) return; // the drag shows its own position
+  for (const el of $$("[data-ptime]")) el.textContent = ct ? `${clock(ct.position)} / ${clock(ct.duration)}` : "";
+  for (const bar of $$("[data-seek]")) {
+    if (ct) {
+      const now = Math.round(ct.position / 1000);
+      if (bar.getAttribute("aria-valuenow") !== String(now) || bar.getAttribute("aria-valuemin") !== "0") {
+        bar.setAttribute("aria-valuemin", "0");
+        bar.setAttribute("aria-valuemax", Math.round(ct.duration / 1000));
+        bar.setAttribute("aria-valuenow", now);
+        bar.setAttribute("aria-valuetext", `${clock(ct.position)} of ${clock(ct.duration)}`);
+      }
+    } else {
+      bar.setAttribute("aria-valuemin", "1");
+      bar.setAttribute("aria-valuemax", n);
+      bar.setAttribute("aria-valuenow", v);
+      bar.setAttribute("aria-valuetext", `Verse ${v} of ${n}`);
+    }
+  }
   for (const bar of $$("[data-prog]")) {
     bar.firstChild.style.width = pct;
     const d = bar.querySelector(".d");
     if (d) d.style.left = pct;
   }
-  // Progress within the verse, so a long verse never looks frozen.
+  // Progress within the verse, so a long verse never looks frozen: the thin bars and the play
+  // button's ring.
   for (const bar of $$("[data-vprog]")) bar.firstChild.style.width = `${clamp(fraction * 100, 0, 100)}%`;
+  root.style.setProperty("--vprog", `${clamp(fraction * 100, 0, 100).toFixed(1)}%`);
 }
 
 function renderNow() {
@@ -223,14 +345,8 @@ function renderNow() {
   for (const el of $$("[data-now-of]")) el.textContent = `Verse ${v} of ${n}`;
   for (const el of $$("[data-now-name]")) el.textContent = chapterName(ch);
   for (const el of $$("[data-now-reciter]")) el.textContent = reciterName();
-  for (const bar of $$("[data-seek]")) {
-    bar.setAttribute("aria-valuemin", "1");
-    bar.setAttribute("aria-valuemax", n);
-    bar.setAttribute("aria-valuenow", v);
-    bar.setAttribute("aria-valuetext", `Verse ${v} of ${n}`);
-  }
   for (const b of $$("[data-prev]")) b.disabled = ch === 1 && v === 1;
-  for (const b of $$("[data-next]")) b.disabled = ch === 114 && v === verseCount(114);
+  for (const b of $$("[data-next]")) b.disabled = ch === 114;
   renderProgress(0);
   renderTransport();
 }
@@ -339,24 +455,33 @@ bookmarks.addEventListener("change", renderBookmark);
 
 // ---------- lock screen and car ----------
 const artwork = new Map(); // ch -> artwork list, once drawn
-player.describe = ({ ch, v }, reciter) => ({
+// One track per chapter: the details change only with the chapter (or reciter), never per
+// verse — the player leaves the metadata alone when they are the same.
+player.describe = ({ ch }, reciter) => ({
   title: chapterName(ch),
   artist: reciter,
-  album: `Verse ${v} of ${verseCount(ch)}`,
-  artwork: artwork.get(ch) ?? [192, 512].map((s) => ({ src: new URL(`icons/icon-${s}.png`, location.href).href, sizes: `${s}x${s}`, type: "image/png" })),
+  album: "Holy Quran",
+  artwork: artwork.get(ch) || [192, 512].map((s) => ({ src: new URL(`icons/icon-${s}.png`, location.href).href, sizes: `${s}x${s}`, type: "image/png" })),
 });
-bus.addEventListener("position", () => {
-  const ch = ctx.current.ch;
-  if (artwork.has(ch) || !("mediaSession" in navigator)) return;
+// The chapter card is drawn before it's needed — the next chapter's while recitation nears
+// the end of this one — so crossing into a chapter changes the metadata exactly once.
+function prepareArtwork(ch) {
+  if (ch < 1 || ch > 114 || artwork.has(ch) || !("mediaSession" in navigator)) return;
+  artwork.set(ch, null); // being drawn
   chapterArtwork(ch).then(
     (list) => {
-      if (!list.length) return;
-      artwork.clear(); // only the current chapter's card is needed
+      if (!list.length) return artwork.delete(ch);
       artwork.set(ch, list);
+      for (const k of artwork.keys()) if (k !== ch && k !== ctx.current.ch && k !== ctx.current.ch + 1) artwork.delete(k);
       if (ctx.current.ch === ch) player.refreshMetadata();
     },
-    () => {},
+    () => artwork.delete(ch),
   );
+}
+bus.addEventListener("position", () => {
+  const { ch, v } = ctx.current;
+  prepareArtwork(ch);
+  if (v > verseCount(ch) * 0.8 || verseCount(ch) - v < 3) prepareArtwork(ch + 1);
 });
 if ("mediaSession" in navigator) {
   const set = (action, fn) => {
@@ -364,19 +489,17 @@ if ("mediaSession" in navigator) {
       navigator.mediaSession.setActionHandler(action, fn);
     } catch {}
   };
-  // Track buttons move by verse (crossing chapters at the ends).
-  set("nexttrack", () => ctx.step(1));
-  set("previoustrack", () => ctx.step(-1));
-  // Android Auto shows seek backward/forward as extra buttons: previous/next chapter. iOS would
-  // replace the track buttons with ±15 s, so there they stay unset.
-  const android = /Android/i.test(navigator.userAgent);
-  const chapter = (d) => () => {
-    const ch = clamp(ctx.current.ch + d, 1, 114);
-    if (ch !== ctx.current.ch) ctx.goTo({ ch, v: 1 });
-  };
-  set("seekforward", android ? chapter(1) : null);
-  set("seekbackward", android ? chapter(-1) : null);
-  set("seekto", null);
+  // Track buttons move by chapter (the track), as the in-app ⏮ ⏭ do.
+  set("nexttrack", () => ctx.chapterStep(1));
+  set("previoustrack", () => ctx.chapterStep(-1));
+  // Scrubbing the lock-screen/car bar: that point of the chapter.
+  set("seekto", (d) => {
+    const ct = nowInChapter();
+    if (ct && Number.isFinite(d?.seekTime)) seekChapterFraction(clamp((d.seekTime * 1000) / ct.duration, 0, 1));
+  });
+  // No ±seek buttons anywhere: the controls are previous/next chapter and the seekbar.
+  set("seekforward", null);
+  set("seekbackward", null);
 }
 
 // How the person is interacting: a tap or click hides focus rings that a keyboard shows.
@@ -385,6 +508,7 @@ window.addEventListener("keydown", (e) => !e.metaKey && !e.ctrlKey && root.remov
 
 // ---------- keyboard shortcuts sheet ----------
 const keysSheet = $("#keys-sheet");
+keysSheet.append(Object.assign(document.createElement("p"), { className: "version", textContent: `Version ${VERSION} · build ${BUILD}` }));
 ctx.showKeys = () => keysSheet.showModal();
 keysSheet.addEventListener("click", (e) => {
   if (e.target === keysSheet || e.target.closest("[data-close]")) keysSheet.close();
@@ -482,14 +606,14 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || localDev)
   });
 }
 
-// After an update reload: "Updated to the latest version", once, quietly.
+// After an update reload: "Updated to version x.y.z" (the newly loaded code's), once, quietly.
 try {
   if (sessionStorage.getItem("quran.updated")) {
     sessionStorage.removeItem("quran.updated");
     const toast = document.createElement("p");
     toast.className = "toast";
     toast.setAttribute("role", "status");
-    toast.textContent = "Updated to the latest version";
+    toast.textContent = `Updated to version ${VERSION}`;
     document.body.append(toast);
     setTimeout(() => toast.remove(), 3200);
   }

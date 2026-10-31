@@ -33,6 +33,11 @@ jobs:
             # Name the offline cache after this commit so each deploy refreshes it.
             sed -i "s/quran-dev/quran-${GITHUB_SHA::12}/" _site/sw.js
             grep -q "quran-${GITHUB_SHA::12}" _site/sw.js
+            # Stamp the build (commit) shown next to the app version in Settings.
+            if [ -f _site/js/version.js ]; then
+              sed -i "s/^export const BUILD = \"dev\";$/export const BUILD = \"${GITHUB_SHA::7}\";/" _site/js/version.js
+              grep -q "BUILD = \"${GITHUB_SHA::7}\"" _site/js/version.js
+            fi
           else
             # Until the app is committed, a holding page
             cp placeholder/index.html _site/

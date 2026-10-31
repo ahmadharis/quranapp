@@ -29,6 +29,7 @@ export const prefs = (() => {
     barCollapsed: false,
     repeat: false,
     hintSeen: false, // the first-visit tip was dismissed
+    focusHintSeen: false, // "Press F or Esc…" was shown once
     install: { dismissed: 0, until: 0, done: false }, // the install recommendation
     nazira: false, // Nazira mode: Read shows the Arabic only, verses flowing like a printed page
     speed: 1,
@@ -66,6 +67,7 @@ export const prefs = (() => {
   p.barCollapsed = p.barCollapsed === true;
   p.nazira = p.nazira === true;
   p.hintSeen = p.hintSeen === true;
+  p.focusHintSeen = p.focusHintSeen === true;
   const ins = isObj(p.install) ? p.install : {};
   p.install = { dismissed: Number.isInteger(ins.dismissed) && ins.dismissed >= 0 ? ins.dismissed : 0, until: Number(ins.until) || 0, done: ins.done === true };
   p.repeat = p.repeat === true;
