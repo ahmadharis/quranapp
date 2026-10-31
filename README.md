@@ -1,36 +1,57 @@
-# Quran App
+# Holy Quran
 
-A web app to read and listen to the Holy Quran, hosted on GitHub Pages.
+Read and listen to the Holy Quran, verse by verse, with recitation that flows from one verse to
+the next without a pause.
 
-## Where the data comes from
+**Open the app:** https://ahmadharis.github.io/quranapp/
 
-| Asset | Source |
+It works in any modern browser on phone, tablet and desktop, and can be installed to the home
+screen as an app.
+
+## What it does
+
+### Read
+- The Arabic text in the Khat-e-Manzoor script, with the Manzoor Naskh font.
+- Tap any verse to play from it, bookmark it or copy it.
+- **Nazira mode:** the Arabic only, the verses flowing together like a printed page.
+- Part (juz) and quarter markers in the text.
+- Optional translations and commentaries shown under each verse, in the order you choose:
+  English (Maulawi Sher Ali, Muhammad Zafrulla Khan, Short Commentary, Five Volume Commentary),
+  Urdu (Hazrat Mirza Tahir Ahmad rh, Tafseer-e-Saghir), and French, Spanish, German, Italian,
+  Bangla, Chinese, Norwegian, Swedish, Hebrew and Myanmar.
+- Word-by-word meanings in English or Urdu, and an introduction for each chapter.
+
+### Listen
+- Recitation by Qari Muhammad Ashiq, Maulana Feroz Alam, Aiman Almaliki, Mishary Rashid
+  AlAfasy and Idir Iken.
+- Verses join seamlessly into one continuous recitation, across chapters too.
+- Each word lights up as it is recited, in Read and in Listen.
+- A Listen view with only the Arabic and the player, made to be read at a glance.
+- Keeps playing with the screen off until you pause; play, pause and previous/next verse from
+  the lock screen, headphones and the car.
+- Repeat a verse, and play at 0.75×, 1× or 1.25×.
+
+### Find your place
+- Go to any chapter, part or verse from one place: search by name, number, `36:58` or `part 30`.
+- Continue where you left off, and keep bookmarks on your device.
+
+### Make it yours
+- Light, dark or automatic appearance, and adjustable text size.
+- Larger screens add a contents sidebar and a panel with the current word's meaning and the
+  chapter introduction; both can be hidden.
+- Full keyboard support (press `?` in the app for the shortcuts).
+- Reading works offline for chapters you have opened.
+
+## Where everything comes from
+
+Everything in the app comes from alislam.org.
+
+| What | Source |
 |---|---|
-| Arabic text, translations, commentaries, word-by-word meanings, chapter introductions, topics index, search | `api.readquran.app` — the API behind alislam.org's official Quran app ([alislam.org/quran/app](https://www.alislam.org/quran/app/)) |
-| Chapter list, part (juz) markers | alislam.org's Quran app |
-| Recitation audio (per verse) | `files.alislam.cloud/audio/tilawat/<reciter>/<chapter>-<verse>-AR.mp3` |
-| Translation audio (per verse) | `files.alislam.cloud/audio/tilawat/<translation>/<chapter>-<verse>-<EN\|UR>.mp3` |
-| Verse images (Persian script) | `files.alislam.cloud/quran/verses/<chapter>-<verse>.png` |
-| Manzoor Naskh font | alislam.org's Quran app assets |
-| Other Arabic fonts (Noorehuda, KFGQPC Uthmanic Hafs) | alislam.org's Quran app assets |
-| Urdu font (Noto Nastaliq Urdu) | [Noto fonts](https://github.com/notofonts/nastaliq) via [Google Fonts](https://fonts.google.com/), SIL Open Font License 1.1 |
-| Amiri, Noto Naskh Arabic fonts | [Google Fonts](https://fonts.google.com/) |
-| Word-by-word timings (`data/words/<reciter>/<chapter>.json`) | Generated from alislam.org's recitation audio and verse text by forced alignment with [rabah2026/wav2vec2-large-xlsr-53-arabic-quran-v_final](https://huggingface.co/rabah2026/wav2vec2-large-xlsr-53-arabic-quran-v_final) (Apache-2.0) |
+| Arabic text, translations, commentaries, word meanings, chapter introductions | `api.readquran.app`, the service behind alislam.org's Quran app ([alislam.org/quran/app](https://www.alislam.org/quran/app/)) |
+| Chapter list, parts and part markers | alislam.org's Quran app |
+| Recitation | `files.alislam.cloud`, alislam.org's audio library, streamed verse by verse |
+| Manzoor Naskh font (Khat-e-Manzoor), `assets/fonts/ManzoorNaskh.ttf` | alislam.org's Quran app |
+| Word-by-word timings, `data/words/<reciter>/<chapter>.json` | Measured from alislam.org's recitation and verse text, so each word can be highlighted as it is recited |
 
-Verse numbering follows alislam.org's Quran (6,348 verses): the Bismillah is verse 1 of every
-chapter except At-Taubah (chapter 9), so Al-Baqarah has 287 verses. This matches the audio files
-exactly. See [why the Bismillah is counted as the first verse](https://www.alislam.org/articles/why-is-bismillahir-rahmanir-raheem-counted-as-first-verse/).
-
-## Files
-
-- `data/words/<reciter>/<chapter>.json` — start and end time (ms) of each word of each verse,
-  measured from the start of that verse's audio file, so recitation can highlight word by word.
-
-- `assets/fonts/ManzoorNaskh.ttf` — Arabic font (Khat-e-Manzoor) from alislam.org's Quran app.
-- `assets/fonts/NotoNastaliqUrdu.ttf` — Urdu font for Urdu translations and word meanings,
-  © The Noto Project Authors, SIL Open Font License 1.1 (`assets/fonts/OFL-NotoNastaliqUrdu.txt`).
-
-## Acknowledgements
-
-The choice of sources was informed by [Quran Memoriser](https://github.com/drhammadkhan/quran-memoriser),
-which builds on the same alislam.org assets.
+Verse numbers follow alislam.org's Quran.
