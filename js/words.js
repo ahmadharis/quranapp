@@ -17,7 +17,7 @@ import { key } from "./util.js";
 
 // Reciters with published timings; others aren't requested (a 404 per chapter is just noise).
 // Add a reciter here once tools/align/ has produced its files.
-const WORD_RECITERS = new Set(["feroz", "aiman", "rashid", "ashiq"]);
+const WORD_RECITERS = new Set(["feroz", "aiman", "rashid", "ashiq", "idir-iken"]);
 export const hasWordTimings = (reciter) => WORD_RECITERS.has(reciter);
 
 const loaded = new Map(); // "reciter/ch" -> Map(v -> [[s, e], …]) | null (no file)
