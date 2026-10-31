@@ -419,7 +419,6 @@ export function initNav(ctx) {
       "div.sbh",
       {},
       h("h2", { text: "Contents" }),
-      h("button.ib", { type: "button", id: "close-contents", "aria-label": "Hide contents", title: "Hide contents ( [ )", "aria-controls": "contents", onclick: () => ctx.layout.toggle("contents") }, icon("i-side-l")),
     ),
     cont,
     sidePicker.el,

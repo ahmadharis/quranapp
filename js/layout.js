@@ -47,7 +47,10 @@ export function initLayout(ctx) {
     root.toggleAttribute("data-focus", focus);
     root.toggleAttribute("data-contents", contents);
     root.toggleAttribute("data-panel", panel);
-    contentsBtn.hidden = !L || contents; // reopens the sidebar; it has its own button to close
+    // Mirrored edge toggles: Contents first in the header, the side panel last; each shows
+    // where its sidebar exists at this size, pressed while open.
+    contentsBtn.hidden = !L;
+    contentsBtn.setAttribute("aria-pressed", String(contents));
     // At panel sizes the button keeps its place in Listen (hidden, not removed), so the
     // Read | Listen switch doesn't move when the mode changes.
     panelBtn.hidden = !PANEL_GROUPS.has(group);
@@ -78,7 +81,7 @@ export function initLayout(ctx) {
     apply();
     ctx.bus.dispatchEvent(new Event("layout"));
     // Keep focus somewhere sensible when its button disappears.
-    if (had && !had.offsetParent) (what === "contents" && L[k] ? $("#close-contents") : $(what === "contents" ? "#toggle-contents" : "#where"))?.focus();
+    if (had && !had.offsetParent) $("#where")?.focus();
     ctx.live(
       what === "focus"
         ? L.focus

@@ -1,13 +1,13 @@
-// Settings: reciter, text size, appearance, and Translations (a sub-view:
-// "Showing" — reorder by dragging a grip — "Available", and word meanings). Also the "⋯"
-// sheet of the player: reciter, repeat and speed.
+// Settings: reciter, text size, appearance, and Translations (a sub-view: your list of shown
+// translations — drag a grip to reorder, × to remove — with an "Add translation" picker, and
+// word meanings). Also the "⋯" sheet of the player: reciter, repeat and speed.
 
 import { RECITERS } from "./player.js";
 import { TRANSLATIONS, WORD_MEANINGS } from "./api.js";
 import { prefs, savePrefs, SPEEDS } from "./prefs.js";
 import { $, $$, h, icon } from "./util.js";
 
-const THEME_COLORS = { light: "#F2F4F1", dark: "#111219" }; // --bg of each theme
+const THEME_COLORS = { light: "#F2F4F1", dark: "#0E1220" }; // --bg of each theme
 const tInfo = (id) => TRANSLATIONS.find((t) => t.id === id);
 
 // Radio groups: one tab stop; arrow keys move the choice (WAI-ARIA radio group pattern).
@@ -124,6 +124,10 @@ export function initSettings(ctx) {
       }),
     );
   }
+  // Install app: for anyone who dismissed the banner (shown only while installable).
+  const installRow = h("button.r.nav-row.install-row", { type: "button", hidden: true, onclick: () => (sheet.close(), ctx.install.open()) }, h("span.nm", {}, h("b", { text: "Install app" }), h("span", { text: "Keeps playing with the screen off, works offline" })), icon("i-right", "ch"));
+  const renderInstall = () => (installRow.hidden = !ctx.install?.installable());
+  ctx.bus.addEventListener("installable", renderInstall);
   const trRow = h("button.r.nav-row", { type: "button", onclick: () => showView("translations") }, h("span.nm", {}, h("b", { text: "Translations" }), h("span#tr-summary")), icon("i-right", "ch"));
 
   const mainView = h(
@@ -137,18 +141,22 @@ export function initSettings(ctx) {
     h("div.grpd.pad", {}, size, h("p.size-sample.ar", { lang: "ar", dir: "rtl", text: "بِسۡمِ اللّٰہِ الرَّحۡمٰنِ الرَّحِیۡمِ" })),
     h("p.cap", { text: "Appearance" }),
     themes,
+    h("div.grpd.install-grp", {}, installRow),
     h("p.credit", {}, "Text, translations and recitation from ", h("a", { href: "https://www.alislam.org/quran/app/", target: "_blank", rel: "noopener", text: "alislam.org" }), "."),
   );
 
   // ---------- translations view ----------
   const live = $("#live");
+  // Your list: only the translations shown, in display order (drag to reorder, × to remove).
+  // "Add translation" opens a picker of all of them; adding puts one at the end of the list.
   const showingGrp = h("div.grpd.showing");
   const showingFoot = h("p.foot");
-  const availGrp = h("div.grpd");
+  const emptyNote = h("p.empty-note", { text: "No translations. Add one to show it under each verse." });
+  const addBtn = h("button.add-tr", { type: "button", onclick: () => showView("add") }, h("span", { "aria-hidden": "true", text: "+" }), "Add translation");
+  const pickerGroups = h("div.tr-picker");
   const wmValue = h("span.val");
   const wmMenu = h("div.menu", { role: "menu", hidden: true, "aria-label": "Word meanings" });
   const wmBtn = h("button.r", { type: "button", "aria-haspopup": "menu", "aria-expanded": "false" }, h("span.nm", {}, h("b", { text: "Word meanings" }), h("span#wm-by")), wmValue, icon("i-updown", "ch"));
-  let moreOpen = false;
 
   const trView = h(
     "div.view#settings-tr",
@@ -160,23 +168,76 @@ export function initSettings(ctx) {
       h("h2", { text: "Translations" }),
       h("button.ib", { type: "button", "data-close": true, "aria-label": "Close" }, icon("i-close")),
     ),
-    h("p.foot.intro", { text: "Shown under each verse in Read, labeled with the translator. Off when none is switched on." }),
-    h("p.cap#showing-cap", { text: "Showing" }),
+    h("p.foot.intro", { text: "Shown under each verse in Read, in this order." }),
+    emptyNote,
     showingGrp,
     showingFoot,
-    h("p.cap", { text: "Available" }),
-    availGrp,
+    addBtn,
     h("div.grpd.wm-row", {}, wmBtn, wmMenu),
   );
-  sheet.append(mainView, trView);
+  // The picker: every translation, grouped; a tap adds or removes one, nothing moves.
+  const addView = h(
+    "div.view#settings-add",
+    { hidden: true },
+    h(
+      "div.sheet-head",
+      {},
+      h("button.back", { type: "button", onclick: () => showView("translations") }, icon("i-back"), h("span.sr-only", { text: "Back to translations" })),
+      h("h2", { text: "Add translation" }),
+      h("button.done", { type: "button", text: "Done", onclick: () => showView("translations") }),
+    ),
+    pickerGroups,
+  );
+  sheet.append(mainView, trView, addView);
 
   function showView(name) {
     mainView.hidden = name !== "main";
     trView.hidden = name !== "translations";
+    addView.hidden = name !== "add";
     sheet.scrollTop = 0;
     if (name === "translations") renderTranslations();
+    else if (name === "add") renderPicker();
     else renderMain();
-    $(name === "main" ? ".nav-row" : ".back", name === "main" ? mainView : trView)?.focus();
+    const view = { main: mainView, translations: trView, add: addView }[name];
+    $(name === "main" ? ".nav-row" : name === "add" ? ".pick" : ".back", view)?.focus();
+  }
+
+  const GROUPS = [
+    ["English", (t) => !t.more && t.script === "latin"],
+    ["Urdu", (t) => !t.more && t.script === "urdu"],
+    ["More languages", (t) => t.more],
+  ];
+  function renderPicker() {
+    const on = new Set(prefs.translations.list);
+    pickerGroups.replaceChildren(
+      ...GROUPS.flatMap(([label, test]) => [
+        h("p.cap", { text: label }),
+        h(
+          "div.grpd",
+          { role: "group", "aria-label": label },
+          TRANSLATIONS.filter(test).map((t) =>
+            h(
+              "button.r.pick",
+              { type: "button", "data-id": t.id, "aria-pressed": String(on.has(t.id)), onclick: () => togglePick(t.id) },
+              h("span.nm", {}, h("b", { text: t.name }), h("span", { text: t.lang })),
+              icon("i-check", "tick"),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+  // Toggling in the picker only changes that row's ✓; the list order is kept (a new one goes
+  // to the end).
+  function togglePick(id) {
+    const list = prefs.translations.list;
+    const was = list.includes(id);
+    if (was) list.splice(list.indexOf(id), 1);
+    else list.push(id);
+    changed();
+    const b = $(`.pick[data-id="${id}"]`, addView);
+    b.setAttribute("aria-pressed", String(!was));
+    live.textContent = `${tInfo(id).name}, ${was ? "removed" : `added, position ${list.length} of ${list.length}`}.`;
   }
 
   function changed() {
@@ -184,26 +245,30 @@ export function initSettings(ctx) {
     ctx.bus.dispatchEvent(new Event("layers"));
   }
 
-  function setOn(id, on) {
+  function remove(id) {
     const list = prefs.translations.list;
     const i = list.indexOf(id);
-    if (on && i < 0) list.push(id);
-    if (!on && i >= 0) list.splice(i, 1);
+    if (i < 0) return;
+    list.splice(i, 1);
     changed();
     renderTranslations();
-    live.textContent = `${tInfo(id).name}, ${on ? "shown" : "hidden"}.`;
+    live.textContent = `${tInfo(id).name}, removed.`;
+    // Keep focus in the list: the row that took its place, else Add.
+    ($$(".r .grip", showingGrp)[Math.min(i, list.length - 1)] ?? addBtn).focus();
   }
 
-  function trRowEl(id, showing) {
+  function trRowEl(id) {
     const t = tInfo(id);
-    const row = h("div.r", { "data-id": id }, h("span.nm", {}, h("b", { text: t.name }), h("span", { text: t.lang })), sw(showing, `${t.name}, ${t.lang}`, (on) => setOn(id, on)));
-    if (showing) {
-      const pos = prefs.translations.list.indexOf(id) + 1;
-      const grip = h("button.grip", { type: "button", "aria-label": `Reorder ${t.name}, position ${pos} of ${prefs.translations.list.length}`, "aria-describedby": "grip-help" }, icon("i-grip"));
-      row.classList.add("indent");
-      row.prepend(grip);
-      dragRow(row, grip, id);
-    }
+    const pos = prefs.translations.list.indexOf(id) + 1;
+    const grip = h("button.grip", { type: "button", "aria-label": `Reorder ${t.name}, position ${pos} of ${prefs.translations.list.length}`, "aria-describedby": "grip-help" }, icon("i-grip"));
+    const row = h(
+      "div.r.indent",
+      { "data-id": id },
+      grip,
+      h("span.nm", {}, h("b", { text: t.name }), h("span", { text: t.lang })),
+      h("button.rm", { type: "button", "aria-label": `Remove ${t.name}`, onclick: () => remove(id) }, icon("i-close")),
+    );
+    dragRow(row, grip, id);
     return row;
   }
 
@@ -219,27 +284,11 @@ export function initSettings(ctx) {
   }
   function renderTranslationsNow() {
     const { list } = prefs.translations;
+    emptyNote.hidden = !!list.length;
     showingGrp.hidden = !list.length;
-    $("#showing-cap", trView).hidden = !list.length;
-    showingGrp.replaceChildren(...list.map((id) => trRowEl(id, true)));
-    showingFoot.hidden = !list.length;
-    showingFoot.replaceChildren(h("span#grip-help", { text: list.length > 1 ? "Drag to change the order." : "Switch on more than one to choose their order." }));
-    const avail = TRANSLATIONS.filter((t) => !list.includes(t.id));
-    const main = avail.filter((t) => !t.more);
-    const extra = avail.filter((t) => t.more);
-    const rows = main.map((t) => trRowEl(t.id, false));
-    if (extra.length) {
-      const moreBtn = h(
-        "button.r",
-        { type: "button", "aria-expanded": String(moreOpen), onclick: () => ((moreOpen = !moreOpen), renderTranslations()) },
-        h("span.nm", {}, h("b", { text: "More languages" })),
-        h("span.val", { text: extra.length }),
-        icon(moreOpen ? "i-chevron" : "i-right", "ch"),
-      );
-      rows.push(moreBtn);
-      if (moreOpen) rows.push(...extra.map((t) => trRowEl(t.id, false)));
-    }
-    availGrp.replaceChildren(...rows);
+    showingGrp.replaceChildren(...list.map((id) => trRowEl(id)));
+    showingFoot.hidden = list.length < 2;
+    showingFoot.replaceChildren(h("span#grip-help", { text: "Drag ⠿ to change the order." }));
     const wm = WORD_MEANINGS.find((w) => w.id === prefs.wordMeanings);
     wmValue.textContent = wm.label;
     $("#wm-by", trView).textContent = wm.by ?? "";
@@ -393,7 +442,7 @@ export function initSettings(ctx) {
     // Swipe away (touch only, so a mouse can still select text).
     let sx = null;
     row.addEventListener("pointerdown", (e) => {
-      if (e.pointerType !== "touch" || e.target.closest(".grip, .sw")) return;
+      if (e.pointerType !== "touch" || e.target.closest(".grip, .rm")) return;
       sx = e.clientX;
     });
     row.addEventListener("pointermove", (e) => {
@@ -407,7 +456,7 @@ export function initSettings(ctx) {
       const dx = e.clientX - sx;
       sx = null;
       row.style.transform = row.style.opacity = "";
-      if (Math.abs(dx) > 100) setOn(id, false);
+      if (dx < -100) remove(id); // swipe left
     };
     row.addEventListener("pointerup", swipeEnd);
     row.addEventListener("pointercancel", () => ((sx = null), (row.style.transform = row.style.opacity = "")));
@@ -429,6 +478,7 @@ export function initSettings(ctx) {
   }
 
   function renderMain() {
+    renderInstall();
     renderNazira();
     syncRadios(reciterList, (b) => b.dataset.reciter === player.reciter);
     size.value = prefs.scale;
@@ -444,7 +494,10 @@ export function initSettings(ctx) {
   }
   $("#open-settings").addEventListener("click", () => openSettings());
   sheet.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !trView.hidden && wmMenu.hidden && !held) {
+    if (e.key === "Escape" && !addView.hidden) {
+      e.preventDefault();
+      showView("translations");
+    } else if (e.key === "Escape" && !trView.hidden && wmMenu.hidden && !held) {
       e.preventDefault();
       showView("main");
     }

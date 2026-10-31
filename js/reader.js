@@ -48,8 +48,10 @@ export function translationBlock(id, value) {
       return b;
     }),
   );
-  // Each block names its translator, as alislam does.
-  box.append(p, noteBox, h("p.tr-by", { lang: "en", dir: "ltr", text: info.name }));
+  // Each block names its translator, as alislam does: a small chip, shown on the current
+  // verse (for screen readers on every verse); a colored rule marks it on the others.
+  box.prepend(h("span.tr-chip", { lang: "en", dir: "ltr", title: info.name, text: info.short }));
+  box.append(p, noteBox);
   return box;
 }
 
@@ -75,22 +77,6 @@ export function initReader(ctx) {
 
   const verseEl = (v) => reader.querySelector(`.verse[data-v="${v}"]`);
 
-  function legend(ids) {
-    const box = h("div.legend");
-    if (!ids.length) return box;
-    box.append(
-      h(
-        "div.lg-tr",
-        {},
-        ids.map((id) => {
-          const t = translationInfo(id);
-          return h("p", {}, h("b", { text: t.name }), " ", h("span", { text: t.lang }));
-        }),
-      ),
-    );
-    return box;
-  }
-
   function setTrAttrs() {
     const n = shownTranslations().length;
     document.documentElement.toggleAttribute("data-tr", n > 0);
@@ -107,7 +93,6 @@ export function initReader(ctx) {
     const count = verseCount(ch);
     const frag = document.createDocumentFragment();
     const head = h("header.chapter-head", {}, h("h1.sura.ar", { lang: "ar", dir: "rtl", text: chapterArabic(ch) }), h("p.sr-only", { text: `${chapterName(ch)}, chapter ${ch}, ${count} verses` }));
-    head.append(legend(shownTranslations()));
     frag.append(head);
 
     for (let v = 1; v <= count; v++) {
@@ -230,7 +215,6 @@ export function initReader(ctx) {
   function refreshLayers() {
     if (!ctx.viewCh) return;
     setTrAttrs();
-    $(".legend", reader)?.replaceWith(legend(shownTranslations()));
     loadLayers(ctx.viewCh);
   }
 

@@ -5,8 +5,8 @@
 // changed), "layout", "panel", "reciter".
 
 import { Player, RECITERS, nextVerse, prevVerse } from "./player.js";
-import { getChapter } from "./api.js";
-import { prefs, savePrefs } from "./prefs.js";
+import { getChapter, TRANSLATIONS } from "./api.js";
+import { prefs, savePrefs, shownTranslations } from "./prefs.js";
 import { $, $$, key, clamp, verseCount, chapterName, partOf } from "./util.js";
 import { WordFollower } from "./words.js";
 import { bookmarks, isBookmarked, toggleBookmark } from "./bookmarks.js";
@@ -16,6 +16,7 @@ import { initListen } from "./listen.js";
 import { initNav } from "./nav.js";
 import { initPanel } from "./panel.js";
 import { initLayout } from "./layout.js";
+import { initInstall } from "./install.js";
 import { initSettings, applyTheme, applyScale, applyNazira, syncRadios, arrowRadios } from "./settings.js";
 
 const root = document.documentElement;
@@ -124,6 +125,7 @@ ctx.panel = initPanel(ctx); // first: its controls are wired with the others bel
 ctx.reader = initReader(ctx);
 ctx.listen = initListen(ctx);
 ctx.nav = initNav(ctx);
+ctx.install = initInstall(ctx);
 ctx.settings = initSettings(ctx);
 ctx.follower = new WordFollower(player, {
   targets: (pos) => [...ctx.reader.targets(pos), ...ctx.listen.targets(pos)],
@@ -214,7 +216,7 @@ function renderNow() {
   const { ch, v } = ctx.current;
   const n = verseCount(ch);
   $("#where-t").textContent = chapterName(ch);
-  $("#where-s").textContent = `Chapter ${ch}, Part ${partOf(ctx.current)}`;
+  $("#where-s").replaceChildren(`Chapter ${ch}, Part ${partOf(ctx.current)}`, translationKey());
   document.title = `${chapterName(ch)} ${ch}:${v} — Holy Quran`;
   for (const el of $$("[data-now-ref]")) el.textContent = `${chapterName(ch)}, verse ${v}`;
   for (const el of $$("[data-now-short]")) el.textContent = `${ch}:${v}`;
@@ -232,6 +234,22 @@ function renderNow() {
   renderProgress(0);
   renderTransport();
 }
+
+// The header's key to the translation colors: " · ■ Sher Ali ■ Mirza Tahir Ahmad".
+function translationKey() {
+  const ids = prefs.nazira ? [] : shownTranslations().slice(0, 3);
+  const key = document.createElement("span");
+  key.className = "tkey";
+  if (!ids.length) return key;
+  key.append(" ·");
+  for (const id of ids) {
+    const i = document.createElement("i");
+    i.setAttribute("aria-hidden", "true");
+    key.append(i, TRANSLATIONS.find((t) => t.id === id).short);
+  }
+  return key;
+}
+bus.addEventListener("layers", () => renderNow());
 
 function renderTransport() {
   const playing = player.playing;
@@ -361,6 +379,10 @@ if ("mediaSession" in navigator) {
   set("seekto", null);
 }
 
+// How the person is interacting: a tap or click hides focus rings that a keyboard shows.
+window.addEventListener("pointerdown", () => root.setAttribute("data-pointer", ""), { capture: true, passive: true });
+window.addEventListener("keydown", (e) => !e.metaKey && !e.ctrlKey && root.removeAttribute("data-pointer"), { capture: true });
+
 // ---------- keyboard shortcuts sheet ----------
 const keysSheet = $("#keys-sheet");
 ctx.showKeys = () => keysSheet.showModal();
@@ -401,7 +423,74 @@ renderNow();
 renderBookmark();
 ctx.layout.apply();
 
+// ---------- updates ----------
+// A new deploy installs its service worker in the background (sw.js: skipWaiting + claim).
+// The page then reloads into it — but recitation never breaks for it: only when nothing is
+// playing (or buffering, or between chunks), and after something was played in this session,
+// only once it has been paused for 2 minutes, or the app goes to the background or is
+// reopened while paused, or recitation has reached its end. Never while a sheet or dialog is
+// open or a row is being dragged. One reload per update; afterwards a quiet toast says so.
 const localDev = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-if ("serviceWorker" in navigator && (location.protocol === "https:" || localDev)) {
-  navigator.serviceWorker.register("sw.js");
+const UPDATE_AFTER_PAUSE_MS = 2 * 60 * 1000;
+let updateWaiting = false;
+let updating = false;
+let everPlayed = false;
+let pausedSince = 0;
+
+function updateIsSafe(reason) {
+  if (!updateWaiting || updating) return false;
+  if (player.playing || player.buffering || player.backend?.switching) return false;
+  if (document.querySelector("dialog[open], .r.dragging, .grip[aria-pressed='true']")) return false;
+  if (!everPlayed) return true;
+  if (reason === "hidden" || reason === "visible" || reason === "ended") return true;
+  return pausedSince > 0 && Date.now() - pausedSince >= UPDATE_AFTER_PAUSE_MS;
 }
+function applyUpdate(reason) {
+  if (!updateIsSafe(reason)) return;
+  updating = true;
+  try {
+    sessionStorage.setItem("quran.updated", "1");
+  } catch {}
+  location.reload();
+}
+player.addEventListener("state", () => {
+  if (player.playing) {
+    everPlayed = true;
+    pausedSince = 0;
+  } else if (everPlayed && !pausedSince) pausedSince = Date.now();
+});
+player.audio.addEventListener("ended", () => setTimeout(() => !player.playing && applyUpdate("ended"), 500));
+document.addEventListener("visibilitychange", () => applyUpdate(document.visibilityState === "visible" ? "visible" : "hidden"));
+// While an update waits: look again now and then (a sheet closed, the 2 minutes passed).
+setInterval(() => updateWaiting && applyUpdate("timer"), 15000);
+
+if ("serviceWorker" in navigator && (location.protocol === "https:" || localDev)) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(
+    (reg) => {
+      const check = () => reg.update().catch(() => {});
+      check();
+      document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && check());
+      setInterval(check, 60 * 60 * 1000);
+    },
+    () => {},
+  );
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return; // the first install taking control is not an update
+    updateWaiting = true;
+    applyUpdate("controllerchange");
+  });
+}
+
+// After an update reload: "Updated to the latest version", once, quietly.
+try {
+  if (sessionStorage.getItem("quran.updated")) {
+    sessionStorage.removeItem("quran.updated");
+    const toast = document.createElement("p");
+    toast.className = "toast";
+    toast.setAttribute("role", "status");
+    toast.textContent = "Updated to the latest version";
+    document.body.append(toast);
+    setTimeout(() => toast.remove(), 3200);
+  }
+} catch {}

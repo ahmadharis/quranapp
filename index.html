@@ -7,7 +7,7 @@
   <title>Holy Quran</title>
   <meta name="description" content="Read and listen to the Holy Quran, verse by verse, with gapless recitation.">
   <meta name="theme-color" content="#F2F4F1" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#111219" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#0E1220" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -56,7 +56,7 @@
   <div class="app" id="app">
     <header class="topbar" id="topbar">
       <div class="tb-start">
-        <button class="ib" id="toggle-contents" aria-controls="contents" aria-label="Show contents" title="Show contents ( [ )" hidden><svg aria-hidden="true"><use href="#i-side-l"/></svg></button>
+        <button class="ib edge" id="toggle-contents" aria-controls="contents" aria-pressed="false" aria-label="Contents" title="Contents ( [ )" hidden><svg aria-hidden="true"><use href="#i-side-l"/></svg></button>
         <button class="where" id="where" data-open-nav aria-haspopup="dialog" aria-controls="nav-sheet">
           <span class="where-tx"><span class="t" id="where-t">Al-Fatihah</span><span class="s" id="where-s">Chapter 1, Part 1</span></span>
           <svg aria-hidden="true"><use href="#i-chevron"/></svg>
@@ -68,9 +68,9 @@
           <button role="radio" data-mode="read" aria-checked="true"><svg aria-hidden="true"><use href="#i-book"/></svg><span>Read</span></button>
           <button role="radio" data-mode="listen" aria-checked="false"><svg aria-hidden="true"><use href="#i-ear"/></svg><span>Listen</span></button>
         </div>
-        <button class="ib" id="toggle-panel" aria-controls="side" aria-pressed="true" aria-label="Side panel" title="Side panel ( ] )"><svg aria-hidden="true"><use href="#i-side-r"/></svg></button>
         <button class="ib" id="toggle-focus" aria-pressed="false" aria-label="Focus, hide all panels" title="Focus ( F )"><svg aria-hidden="true"><use href="#i-focus"/></svg></button>
         <button class="ib" id="open-settings" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-sheet"><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
+        <button class="ib edge" id="toggle-panel" aria-controls="side" aria-pressed="true" aria-label="Side panel" title="Side panel ( ] )"><svg aria-hidden="true"><use href="#i-side-r"/></svg></button>
       </div>
     </header>
     <aside class="contents" id="contents" aria-label="Contents"></aside>

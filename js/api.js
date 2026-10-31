@@ -144,12 +144,12 @@ export function getChapter(ch, onBatch) {
 // title + detail). The verse field and the request flag both carry the id. Fields are either a
 // plain string or {text, notes:[{ref, note}]} (checked live 2026-10-30).
 export const TRANSLATIONS = [
-  { id: "en", name: "Maulawi Sher Ali", lang: "English", script: "latin" },
-  { id: "zk", name: "Muhammad Zafrulla Khan", lang: "English", script: "latin" },
-  { id: "sc", name: "Short Commentary", lang: "English, with notes", script: "latin" },
-  { id: "v5", name: "Five Volume Commentary", lang: "English, with notes", script: "latin" },
-  { id: "ur", name: "Hazrat Mirza Tahir Ahmad rh", lang: "Urdu", script: "urdu" },
-  { id: "ts", name: "Tafseer-e-Saghir", lang: "Urdu, with short commentary", script: "urdu" },
+  { id: "en", short: "Sher Ali", name: "Maulawi Sher Ali", lang: "English", script: "latin" },
+  { id: "zk", short: "Zafrulla Khan", name: "Muhammad Zafrulla Khan", lang: "English", script: "latin" },
+  { id: "sc", short: "Short Commentary", name: "Short Commentary", lang: "English, with notes", script: "latin" },
+  { id: "v5", short: "Five Volume", name: "Five Volume Commentary", lang: "English, with notes", script: "latin" },
+  { id: "ur", short: "Mirza Tahir Ahmad", name: "Hazrat Mirza Tahir Ahmad rh", lang: "Urdu", script: "urdu" },
+  { id: "ts", short: "Tafseer-e-Saghir", name: "Tafseer-e-Saghir", lang: "Urdu, with short commentary", script: "urdu" },
   { id: "fr", name: "Français", lang: "French", script: "latin", more: true },
   { id: "es", name: "Español", lang: "Spanish", script: "latin", more: true },
   { id: "de", name: "Deutsch", lang: "German", script: "latin", more: true },
@@ -162,7 +162,10 @@ export const TRANSLATIONS = [
   { id: "he", name: "עברית", lang: "Hebrew", script: "rtl", htmlLang: "he", more: true },
 ];
 const HTML_LANG = { en: "en", zk: "en", sc: "en", v5: "en", ur: "ur", ts: "ur", fr: "fr", es: "es", de: "de", it: "it", sv: "sv" };
-for (const t of TRANSLATIONS) t.htmlLang ??= HTML_LANG[t.id];
+for (const t of TRANSLATIONS) {
+  t.htmlLang ??= HTML_LANG[t.id];
+  t.short ??= t.lang; // the other languages go by their language name
+}
 
 // Word meanings: `words[].t`, one gloss per space-separated word of `ar` (the last entry, for
 // the verse-end ornament, is empty). Its language follows the `hover` value of the request:

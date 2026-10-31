@@ -19,6 +19,7 @@ const SHELL = [
   "css/app.css",
   "js/boot.js",
   "js/app.js",
+  "js/install.js",
   "js/bookmarks.js",
   "js/api.js",
   "js/artwork.js",
