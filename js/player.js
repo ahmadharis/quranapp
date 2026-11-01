@@ -173,17 +173,43 @@ class StreamBackend {
     this.loader = loader;
     this.session = 0;
     this.segments = [];
+    this.live = false; // "classic" car controls: the stream looks live (duration Infinity)
+    this.ms = null;
+  }
+
+  // Live (infinite duration): browsers then offer no seeking of their own — Chrome adds
+  // default ±10 s lock-screen/car actions to seekable media and they can't be removed
+  // (Chromium issue 349529659). Our seeking only sets currentTime inside what is buffered, or
+  // rebuilds the stream, so it works either way.
+  setLive(on) {
+    this.live = on;
+    this.#applyDuration();
+  }
+  #applyDuration() {
+    const ms = this.ms;
+    if (!ms || ms.readyState !== "open") return;
+    if ([...ms.sourceBuffers].some((b) => b.updating)) return; // retried after the next append
+    try {
+      if (this.live && ms.duration !== Infinity) ms.duration = Infinity;
+      else if (!this.live && ms.duration === Infinity) {
+        // Back to a finite stream: the end of what is buffered (appends extend it).
+        const ends = [...ms.sourceBuffers].map((b) => (b.buffered.length ? b.buffered.end(b.buffered.length - 1) : 0));
+        ms.duration = Math.max(0, ...ends) || 0;
+      }
+    } catch {}
   }
 
   async start(reciter, pos) {
     const session = ++this.session;
     this.segments = [];
     const ms = new MediaSource();
+    this.ms = ms;
     const url = URL.createObjectURL(ms);
     this.audio.src = url;
     await new Promise((r) => ms.addEventListener("sourceopen", r, { once: true }));
     URL.revokeObjectURL(url);
     if (session !== this.session) return;
+    this.#applyDuration();
     const sb = ms.addSourceBuffer("audio/mpeg");
     this.#pump(session, ms, sb, reciter, pos);
   }
@@ -279,6 +305,7 @@ class StreamBackend {
         return;
       }
       failures = 0;
+      this.#applyDuration();
       const start = end;
       end += data.duration;
       // fileMs: where this segment starts inside the verse's original MP3 (its priming is cut).
@@ -294,7 +321,7 @@ class StreamBackend {
         this.segments = this.segments.filter((s) => s.end > keepFrom);
       }
     }
-    if (alive() && !pos && !sb.updating) ms.endOfStream();
+    if (alive() && !pos && !sb.updating) ms.endOfStream(); // the end of the Quran (the duration becomes finite then)
   }
 }
 
@@ -459,11 +486,14 @@ export class Player extends EventTarget {
     this.audio = new Audio();
     this.audio.preload = "auto";
     this.loadError = false; // a verse couldn't be fetched (offline, CDN, captive portal); retrying
-    // Optional hook: (from, to) => true to play `from` again instead of moving on (Repeat).
-    this.shouldRepeat = null;
+    // Optional hook: (from, to) => a position to go to instead of moving on from `from` to `to`
+    // (`to` null: the end of the Quran), or null (Repeat chapter).
+    this.repeatTarget = null;
     // Optional hook: (segment {ch, v}, msInVerseFile) => {duration, position} in ms of the
     // chapter, so the lock screen and car show one track per chapter.
     this.timeline = null;
+    // Lock screen / car progress (setPositionState). Off for "classic" car controls.
+    this.positionState = true;
     this.lastMeta = ""; // metadata is only re-sent when it actually changes
     this.pendingSeek = null; // {ch, v, ms}: a seek to apply once that verse plays
     this.#useBackend(prefersChunks());
@@ -495,6 +525,11 @@ export class Player extends EventTarget {
       this.#setBuffering(this.awaitingAudio);
     });
     a.addEventListener("waiting", () => this.#setBuffering(true));
+    // The end of the Quran (114:6) with Repeat chapter on.
+    a.addEventListener("ended", () => {
+      const again = this.started && !this.backend.switching && this.repeatTarget?.(this.position, null);
+      if (again) this.#restartAt(again);
+    });
     a.addEventListener("pause", () => this.#emitState());
     a.addEventListener("play", () => this.#emitState());
     this.#mediaSession();
@@ -503,6 +538,7 @@ export class Player extends EventTarget {
   #useBackend(chunks) {
     this.loader = new VerseLoader({ measureEdges: !chunks });
     this.backend = chunks ? new ChunkBackend(this.audio, this.loader) : new StreamBackend(this.audio, this.loader);
+    this.backend.setLive?.(this.carLive === true);
     this.backend.onLoadError = () => {
       if (this.loadError) return;
       this.loadError = true;
@@ -637,21 +673,15 @@ export class Player extends EventTarget {
       }
     } else if (ps && (ps.ch !== this.position.ch || ps.v !== this.position.v)) this.pendingSeek = null;
     if (key(seg) !== key(this.position)) {
-      // Repeat: back to the start of the verse, without announcing the next one (no flicker
-      // on the lock screen).
-      if (this.shouldRepeat?.(this.position, seg)) {
-        if (!this.backend.seekBuffered(this.position)) {
-          this.started = false; // the verse is in the previous chunk: rebuild from it
-          this.play();
-        }
-        return;
-      }
+      // Repeat chapter: back to its verse 1 instead of into the next chapter.
+      const again = this.repeatTarget?.(this.position, seg);
+      if (again) return this.#restartAt(again);
       this.position = { ch: seg.ch, v: seg.v };
       this.#announce();
     }
     // The lock screen and car show progress: through the whole chapter when the `timeline`
     // hook can place this moment in it (one track per chapter), else through the verse.
-    try {
+    if (this.positionState) try {
       const ms = (t - seg.start) * 1000 + seg.fileMs;
       const tl = this.timeline?.(seg, ms);
       const duration = tl ? tl.duration / 1000 : seg.end - seg.start;
@@ -663,6 +693,17 @@ export class Player extends EventTarget {
         navigator.mediaSession?.setPositionState?.({ duration, position, playbackRate: Number.isFinite(rate) && rate > 0 ? rate : 1 });
       }
     } catch {}
+  }
+
+  #restartAt(pos) {
+    this.position = { ...pos };
+    if (!this.backend.seekBuffered(pos)) {
+      this.started = false; // not buffered any more: rebuild from it (play() announces it)
+      this.play();
+      return;
+    }
+    this.audio.play().catch(() => {});
+    this.#announce();
   }
 
   #announce() {
@@ -680,6 +721,20 @@ export class Player extends EventTarget {
       navigator.mediaSession.playbackState = this.playing ? "playing" : "paused";
     }
     this.dispatchEvent(new Event("state"));
+  }
+
+  // Car / lock-screen controls (see applyCarControls in app.js). "classic" and "nobar": on MSE
+  // a live stream, which the browser adds no ±10 s seeking to; "nobar" also clears the
+  // progress (positionState). "scrubber": a normal stream.
+  setCarControls(mode) {
+    this.carLive = mode === "classic" || mode === "nobar";
+    this.positionState = mode !== "nobar";
+    this.backend.setLive?.(this.carLive);
+    if (!this.positionState) {
+      try {
+        navigator.mediaSession?.setPositionState?.();
+      } catch {}
+    }
   }
 
   // Re-sends the now-playing details, e.g. once chapter artwork has been drawn.

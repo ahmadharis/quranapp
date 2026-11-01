@@ -925,3 +925,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .imp-help li { margin-bottom: 4px; }
 .imp-choices { display: flex; flex-wrap: wrap; gap: 10px; }
 .imp-choices[hidden] { display: none; }
+.car-choices button { gap: 12px; padding-top: 8px; padding-bottom: 8px; }
+.car-choices .nm { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.car-choices .car-hint { font-size: 13px; font-weight: 400; color: var(--ink2); line-height: 1.35; }
+.car-choices .tick { flex: none; }
+#settings-sheet .install-grp:has(> .install-row[hidden]) { display: none; }
+.car-choices b { font-weight: 500; }
+.car-choices [aria-checked="true"] b { font-weight: 650; }
+#settings-sheet .install-grp, #settings-sheet .transfer-grp { margin-top: 20px; }

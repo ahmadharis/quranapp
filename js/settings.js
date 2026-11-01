@@ -1,6 +1,6 @@
 // Settings, one page: reciter; translations (your list of shown translations — drag a grip to
 // reorder, × to remove — an "Add translation" picker, and word meanings); follow words, Nazira
-// mode, text size, appearance, install, move to another device. Also the "⋯" sheet of the player: speed, reciter and
+// mode, text size, appearance, car controls, install, move to another device. Also the "⋯" sheet of the player: speed, reciter and
 // bookmark.
 
 import { RECITERS } from "./player.js";
@@ -132,6 +132,19 @@ export function initSettings(ctx) {
   const renderInstall = () => (installRow.hidden = !ctx.install?.installable());
   ctx.bus.addEventListener("installable", renderInstall);
 
+  // Car controls (lock screen and car), three experiments: see applyCarControls in app.js.
+  const carList = h("div.choices.car-choices", { role: "radiogroup", "aria-labelledby": "car-cap" });
+  for (const [v, label, hint] of [
+    ["classic", "Previous/next + progress", "Previous and next chapter, with a progress bar"],
+    ["nobar", "Previous/next only", "Previous and next chapter, no progress bar"],
+    ["scrubber", "Standard", "As before; Android Auto may show ±10 s in place of previous/next"],
+  ]) {
+    carList.append(
+      h("button", { type: "button", role: "radio", "data-car": v, onclick: () => ((prefs.carControls = v), savePrefs(), ctx.applyCarControls(), renderMain()) }, h("span.nm", {}, h("b", { text: label }), h("span.car-hint", { text: hint })), icon("i-check", "tick")),
+    );
+  }
+  arrowRadios(carList);
+
   // Move to another device: its own full-screen view (js/transfer.js).
   const transferRow = h("button.r.nav-row.transfer-row", { type: "button", onclick: () => (sheet.close(), ctx.transfer.open()) }, h("span.nm", {}, h("b", { text: "Move to another device" })), icon("i-right", "ch"));
 
@@ -178,6 +191,8 @@ export function initSettings(ctx) {
     ),
     h("p.sec", { text: "Appearance" }),
     h("div.grpd", {}, h("div.r", {}, h("span.nm", { text: "Theme" }), themes)),
+    h("p.sec#car-cap", { text: "Car controls" }),
+    h("div.grpd", {}, carList),
     h("div.grpd.install-grp", {}, installRow),
     h("div.grpd.transfer-grp", {}, transferRow),
     h("p.credit", {}, "Text, translations and recitation from ", h("a", { href: "https://www.alislam.org/quran/app/", target: "_blank", rel: "noopener", text: "alislam.org" }), "."),
@@ -471,6 +486,7 @@ export function initSettings(ctx) {
     reciterValue.textContent = RECITERS.find((r) => r.id === player.reciter)?.name ?? "";
     size.value = prefs.scale;
     syncRadios(themes, (b) => b.dataset.themeValue === prefs.theme);
+    syncRadios(carList, (b) => b.dataset.car === prefs.carControls);
     renderTranslations();
   }
 

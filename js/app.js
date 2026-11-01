@@ -178,14 +178,14 @@ $("[data-info]", playerEl).addEventListener("click", () => {
   if (playerEl.dataset.variant === "mini") setMode("listen");
   else ctx.nav.open();
 });
-// Repeat this verse: a toggle in the transport row.
+// Repeat chapter: a toggle in the transport row.
 const repeatBtn = $("#qp-repeat");
 const renderRepeat = () => repeatBtn.setAttribute("aria-pressed", String(prefs.repeat));
 repeatBtn.addEventListener("click", () => {
   prefs.repeat = !prefs.repeat;
   savePrefs();
   renderRepeat();
-  ctx.live(prefs.repeat ? "Repeating this verse." : "Repeat off.");
+  ctx.live(prefs.repeat ? "Repeating this chapter." : "Repeat off.");
 });
 renderRepeat();
 // The chapter card as the player's thumbnail.
@@ -448,8 +448,14 @@ bus.addEventListener("position", renderNow);
 bus.addEventListener("reciter", renderNow);
 
 // The recited verse changed (or a cue was confirmed).
-// Repeat: when a verse ends by itself, the player goes back to its start.
-player.shouldRepeat = (from, to) => prefs.repeat && Date.now() > userMoveUntil && key(to) === key(nextVerse(from) ?? {});
+// Repeat chapter: when the chapter's last verse ends by itself (recitation moving on into the
+// next chapter, or the end of the Quran), recitation goes back to its verse 1.
+player.repeatTarget = (from, to) => {
+  if (!prefs.repeat || Date.now() < userMoveUntil) return null;
+  const next = nextVerse(from);
+  const natural = to ? !!next && key(to) === key(next) : !next;
+  return natural && (!next || next.ch !== from.ch) ? { ch: from.ch, v: 1 } : null;
+};
 player.addEventListener("verse", (e) => {
   const pos = e.detail;
   const moved = key(pos) !== key(ctx.current);
@@ -519,15 +525,50 @@ if ("mediaSession" in navigator) {
   // Track buttons move by chapter (the track), as the in-app ⏮ ⏭ do.
   set("nexttrack", () => ctx.chapterStep(1));
   set("previoustrack", () => ctx.chapterStep(-1));
-  // Scrubbing the lock-screen/car bar: that point of the chapter.
-  set("seekto", (d) => {
-    const ct = nowInChapter();
-    if (ct && Number.isFinite(d?.seekTime)) seekChapterFraction(clamp((d.seekTime * 1000) / ct.duration, 0, 1));
-  });
   // No ±seek buttons anywhere: the controls are previous/next chapter and the seekbar.
   set("seekforward", null);
   set("seekbackward", null);
 }
+// Car controls (prefs.carControls), all with previous chapter · play/pause · next chapter and
+// one track per chapter. Android Auto shows Chrome's own ±10 s buttons in place of
+// previous/next when the media element is seekable (Chromium issue 349529659), so:
+// - "scrubber" (Standard): a normal seekable stream, chapter progress and seek-to.
+// - "classic" (Previous/next + progress): the stream looks live to the browser (MSE duration
+//   Infinity, js/player.js), while the page still gives chapter progress and seek-to.
+// - "nobar" (Previous/next only): live-looking stream, no seek-to, no progress.
+// The in-app players are the same in all three.
+function applyCarControls() {
+  const noBar = prefs.carControls === "nobar";
+  player.setCarControls(prefs.carControls);
+  if (!("mediaSession" in navigator)) return;
+  try {
+    navigator.mediaSession.setActionHandler(
+      "seekto",
+      noBar
+        ? null
+        : (d) => {
+            const ct = nowInChapter();
+            if (ct && Number.isFinite(d?.seekTime)) seekChapterFraction(clamp((d.seekTime * 1000) / ct.duration, 0, 1));
+          },
+    );
+  } catch {}
+}
+ctx.applyCarControls = applyCarControls;
+// ?car=classic, ?car=nobar or ?car=scrubber (links for trying them in the car): saved, then the parameter
+// leaves the address.
+{
+  const url = new URL(location.href);
+  const car = url.searchParams.get("car");
+  if (car !== null) {
+    if (["classic", "nobar", "scrubber"].includes(car)) {
+      prefs.carControls = car;
+      savePrefs();
+    }
+    url.searchParams.delete("car");
+    history.replaceState(history.state, "", url.href);
+  }
+}
+applyCarControls();
 
 // How the person is interacting: a tap or click hides focus rings that a keyboard shows.
 window.addEventListener("pointerdown", () => root.setAttribute("data-pointer", ""), { capture: true, passive: true });

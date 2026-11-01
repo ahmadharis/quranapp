@@ -10,6 +10,8 @@
 //   2 - 1.1.1: adds `schema`; the shape is otherwise unchanged.
 //   3 - 1.2.0: adds `lastAt` (when the last position was set; 0 = unknown), so importing from
 //       another device can keep whichever last position is newer.
+//   4 - 1.2.1: adds `carControls` ("scrubber" | "classic" | "nobar"; see applyCarControls in
+//       app.js). `repeat` now repeats the chapter (it repeated the verse); kept as it is.
 // To change the shape: bump SCHEMA and add a step to STEPS that turns the old values into the
 // new ones.
 
@@ -26,7 +28,7 @@ export const validPos = (p) =>
 
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 
-export const SCHEMA = 3;
+export const SCHEMA = 4;
 // STEPS[n] turns schema-n prefs into schema n+1, in place.
 const STEPS = {
   1: (p) => {
@@ -36,6 +38,9 @@ const STEPS = {
   },
   2: (p) => {
     if (!(Number.isFinite(p.lastAt) && p.lastAt >= 0)) p.lastAt = 0; // not known before 1.2.0
+  },
+  3: (p) => {
+    if (!["classic", "nobar"].includes(p.carControls)) p.carControls = "scrubber"; // the behavior before 1.2.1
   },
 };
 
@@ -71,6 +76,7 @@ export function normalizePrefs(saved) {
     nazira: false, // Nazira mode: Read shows the Arabic only, verses flowing like a printed page
     speed: 1,
     followWords: true, // light each word as it is recited, where word timings exist
+    carControls: "scrubber", // lock screen / car: "scrubber", "classic" or "nobar" (app.js, applyCarControls)
   };
   const p = { ...defaults, ...migrate(saved) };
   if (!RECITERS.some((r) => r.id === p.reciter)) p.reciter = defaults.reciter;
@@ -108,6 +114,7 @@ export function normalizePrefs(saved) {
   p.repeat = p.repeat === true;
   if (!SPEEDS.includes(p.speed)) p.speed = 1;
   p.followWords = p.followWords !== false;
+  if (!["scrubber", "classic", "nobar"].includes(p.carControls)) p.carControls = defaults.carControls;
   return p;
 }
 

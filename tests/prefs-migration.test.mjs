@@ -2,7 +2,8 @@
 // 1. Preferences exactly as 1.1.0 stores them (no `schema` field) and as 1.1.1 stores them
 //    (schema 2), with a non-default value everywhere plus bookmarks and a resume point, are
 //    loaded by this version: every value and bookmark is unchanged, and the stored prefs gain
-//    only the current `schema` and `lastAt` (0: not known before 1.2.0).
+//    only the current `schema`, `lastAt` (0: not known before 1.2.0) and `carControls`
+//    ("scrubber", the behavior before 1.2.1).
 // 2. A service-worker update (cache v1 -> v2, served by a small server of its own) leaves
 //    localStorage and IndexedDB intact.
 import { createServer } from "node:http";
@@ -68,7 +69,8 @@ try {
     sameAsOld(`${label} stored`, s);
     t.check(SCHEMA >= 3 && s?.schema === SCHEMA, `${label}: stored schema ${s?.schema}, expected ${SCHEMA}`);
     t.check(s?.lastAt === 0, `${label}: lastAt ${s?.lastAt}, expected 0`);
-    const extra = Object.keys(s ?? {}).filter((k) => !(k in OLD) && k !== "schema" && k !== "lastAt");
+    t.check(s?.carControls === "scrubber", `${label}: carControls ${s?.carControls}, expected the old behavior "scrubber"`);
+    const extra = Object.keys(s ?? {}).filter((k) => !(k in OLD) && !["schema", "lastAt", "carControls"].includes(k));
     t.check(!extra.length, `${label}: unexpected stored keys ${extra}`);
     const ui = await page.evaluate(() => ({
       hash: location.hash,

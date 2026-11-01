@@ -1,7 +1,7 @@
 // One track per chapter on the lock screen / car (Media Session): metadata changes only when
 // the chapter does; the position runs over the whole chapter (its duration = the sum of the
 // verses' file lengths); the handlers are play/pause/stop, previous/next track (chapter) and
-// seek-to — no ±seek; previous restarts the chapter after 3 s; repeat keeps the chapter length.
+// seek-to — no ±seek; previous restarts the chapter after 3 s; Repeat loops the chapter.
 import { launch, context, open, position, checker } from "./lib/browsers.mjs";
 import { durations, total, before } from "./lib/durations.mjs";
 
@@ -61,17 +61,39 @@ try {
     t.check(prev1 === "36:1" && prev2 === "35:1" && next === "36:1", `previous ×2, next: ${prev1}, ${prev2}, ${next}`);
     await ctx.close();
   }
-  {
+  // Repeat chapter: the chapter's last verse is followed by its verse 1, never the next chapter;
+  // the metadata stays (same track) and the position starts again from 0. Mid-Quran (1:7 →
+  // 1:1, where the stream has 2:1 queued) and at the very end (114:7 → 114:1; alislam counts the
+  // Bismillah as verse 1).
+  for (const [from, ch, last] of [["1:6", 1, 7], ["114:5", 114, 7]]) {
     const ctx = await context(b, { prefs: { reciter: "rashid", repeat: true } });
     await ctx.addInitScript(SPY);
-    const { page } = await open(ctx, "#/1:2");
-    await page.evaluate(() => window.quranPlayer.play());
+    const { page, errors } = await open(ctx, `#/${from}`);
+    t.check((await page.getAttribute("#qp-repeat", "aria-label")) === "Repeat chapter" && (await page.getAttribute("#qp-repeat", "aria-pressed")) === "true", "repeat toggle label/state");
+    await page.evaluate(() => {
+      window.__seen = [];
+      window.__meta.length = 0;
+      window.quranPlayer.addEventListener("verse", (e) => window.__seen.push(`${e.detail.ch}:${e.detail.v}`));
+      window.quranPlayer.play();
+    });
     const ps = [];
-    for (let i = 0; i < 50; i++) { await page.waitForTimeout(300); ps.push(await page.evaluate(() => window.__last && [Math.round(window.__last.duration * 1000), Math.round(window.__last.position * 1000)])); }
-    const ok = ps.filter(Boolean);
-    t.check(ok.every(([d]) => d === total(D, 1)), "repeat changed the duration");
-    t.check(ok.every(([, p]) => p >= before(D, 1, 2) - 10 && p <= before(D, 1, 3) + 10), "repeat left the verse's range");
-    t.note(`repeat: position stayed in 1:2 (${before(D, 1, 2)}–${before(D, 1, 3)} ms) for 15 s`);
+    for (let i = 0; i < 200; i++) {
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => ({ seen: window.__seen.join(), d: window.__last && Math.round(window.__last.duration * 1000), p: window.__last && Math.round(window.__last.position * 1000), ch: window.quranPlayer.position.ch }));
+      ps.push(r);
+      if (r.seen.includes(`${ch}:${last},${ch}:1,${ch}:2`)) break;
+    }
+    const end = ps.at(-1);
+    t.check(end.seen.includes(`${ch}:${last},${ch}:1`), `repeat ${from}: verses ${end.seen}`);
+    t.check(ps.every((r) => r.ch === ch) && !end.seen.split(",").some((k) => !k.startsWith(`${ch}:`)), `repeat ${from}: left chapter ${ch} (${end.seen})`);
+    const meta = await page.evaluate(() => window.__meta);
+    t.check(meta.every((m) => m.startsWith(`${ch === 1 ? "Al-Fatihah" : "An-Nas"}|`)), `repeat ${from}: metadata changed ${JSON.stringify(meta)}`);
+    t.check(ps.filter((r) => r.d).every((r) => r.d === total(D, ch)), `repeat ${from}: duration changed`);
+    const loop = ps.findIndex((r) => r.seen.includes(`${ch}:${last},${ch}:1`));
+    t.check(loop >= 0 && ps.slice(loop).some((r) => r.p !== null && r.p < 3000), `repeat ${from}: position didn't restart near 0`);
+    t.check(!errors.length, `repeat ${from}: console errors ${errors.join(" | ")}`);
+    t.note(`repeat chapter ${from}: ${end.seen}`);
+    await page.evaluate(() => window.quranPlayer.pause());
     await ctx.close();
   }
 } finally {
