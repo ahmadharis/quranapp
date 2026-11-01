@@ -21,15 +21,16 @@ import { CHAPTERS } from "./quran-data.js";
 
 const AUDIO_BASE = "https://files.alislam.cloud/audio/tilawat/";
 
-// alislam's reciters, in alislam's order; Mishary Rashid AlAfasy is alislam's default.
+// alislam's reciters. Maulana Feroz Alam is first and the default (the owner's choice); the rest
+// follow alislam's order.
 export const RECITERS = [
-  { id: "ashiq", name: "Qari Muhammad Ashiq" },
   { id: "feroz", name: "Maulana Feroz Alam" },
+  { id: "ashiq", name: "Qari Muhammad Ashiq" },
   { id: "aiman", name: "Aiman Almaliki" },
   { id: "rashid", name: "Mishary Rashid AlAfasy" },
   { id: "idir-iken", name: "Idir Iken" },
 ];
-export const DEFAULT_RECITER = "rashid";
+export const DEFAULT_RECITER = "feroz";
 
 const pad3 = (n) => String(n).padStart(3, "0");
 const audioUrl = (reciter, { ch, v }) => `${AUDIO_BASE}${reciter}/${pad3(ch)}-${pad3(v)}-AR.mp3`;
