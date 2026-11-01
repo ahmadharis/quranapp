@@ -4,6 +4,7 @@
 // - classic (Previous/next + progress): live stream on Chromium (MSE duration Infinity, so
 //   Chrome adds no ±10 s actions of its own), seek-to and position state kept.
 // - nobar (Previous/next only): live stream, no seek-to, no position state.
+// - progress (Previous/next + progress, fixed): seekable stream, position state, no seek-to.
 // In every mode the in-app seekbar (keyboard, drag, far drag), ⏭ and chapter crossing work, and
 // the car's previous/next track (and seek-to where offered) land correctly.
 import { launch, context, open, position, waitFor, checker, OUT } from "./lib/browsers.mjs";
@@ -35,6 +36,7 @@ const WANT = {
   scrubber: { handlers: "nexttrack,pause,play,previoustrack,seekto,stop", ps: true, live: false },
   classic: { handlers: "nexttrack,pause,play,previoustrack,seekto,stop", ps: true, live: true },
   nobar: { handlers: BASE_H, ps: false, live: true },
+  progress: { handlers: BASE_H, ps: true, live: false }, // chapter progress, no seek-to
 };
 try {
   for (const [mode, want] of Object.entries(WANT)) {
@@ -132,7 +134,7 @@ try {
     await page.waitForTimeout(3000);
     await page.click("#open-settings");
     const labels = await page.$$eval(".car-choices [role=radio] b", (els) => els.map((e) => e.textContent).join(" | "));
-    t.check(labels === "Previous/next + progress | Previous/next only | Standard", `Settings labels: ${labels}`);
+    t.check(labels === "Previous/next + progress (fixed) | Previous/next + progress | Previous/next only | Standard", `Settings labels: ${labels}`);
     await page.click('[data-car="nobar"]');
     await page.waitForTimeout(1500);
     const n = await state(page);

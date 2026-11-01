@@ -135,6 +135,7 @@ export function initSettings(ctx) {
   // Car controls (lock screen and car), three experiments: see applyCarControls in app.js.
   const carList = h("div.choices.car-choices", { role: "radiogroup", "aria-labelledby": "car-cap" });
   for (const [v, label, hint] of [
+    ["progress", "Previous/next + progress (fixed)", "Previous and next chapter, with a progress bar you can't drag"],
     ["classic", "Previous/next + progress", "Previous and next chapter, with a progress bar"],
     ["nobar", "Previous/next only", "Previous and next chapter, no progress bar"],
     ["scrubber", "Standard", "As before; Android Auto may show ±10 s in place of previous/next"],

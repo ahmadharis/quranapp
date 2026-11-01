@@ -40,7 +40,7 @@ const STEPS = {
     if (!(Number.isFinite(p.lastAt) && p.lastAt >= 0)) p.lastAt = 0; // not known before 1.2.0
   },
   3: (p) => {
-    if (!["classic", "nobar"].includes(p.carControls)) p.carControls = "scrubber"; // the behavior before 1.2.1
+    if (!["progress", "classic", "nobar"].includes(p.carControls)) p.carControls = "scrubber"; // the behavior before 1.2.1
   },
 };
 
@@ -76,7 +76,7 @@ export function normalizePrefs(saved) {
     nazira: false, // Nazira mode: Read shows the Arabic only, verses flowing like a printed page
     speed: 1,
     followWords: true, // light each word as it is recited, where word timings exist
-    carControls: "scrubber", // lock screen / car: "scrubber", "classic" or "nobar" (app.js, applyCarControls)
+    carControls: "scrubber", // lock screen / car: "scrubber", "progress", "classic" or "nobar" (app.js, applyCarControls)
   };
   const p = { ...defaults, ...migrate(saved) };
   if (!RECITERS.some((r) => r.id === p.reciter)) p.reciter = defaults.reciter;
@@ -114,7 +114,7 @@ export function normalizePrefs(saved) {
   p.repeat = p.repeat === true;
   if (!SPEEDS.includes(p.speed)) p.speed = 1;
   p.followWords = p.followWords !== false;
-  if (!["scrubber", "classic", "nobar"].includes(p.carControls)) p.carControls = defaults.carControls;
+  if (!["scrubber", "progress", "classic", "nobar"].includes(p.carControls)) p.carControls = defaults.carControls;
   return p;
 }
 

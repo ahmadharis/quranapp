@@ -536,15 +536,18 @@ if ("mediaSession" in navigator) {
 // - "classic" (Previous/next + progress): the stream looks live to the browser (MSE duration
 //   Infinity, js/player.js), while the page still gives chapter progress and seek-to.
 // - "nobar" (Previous/next only): live-looking stream, no seek-to, no progress.
+// - "progress" (Previous/next + progress, not draggable): a normal stream and chapter progress,
+//   but no seek-to — how the car behaved before the chapter-level player, when it still showed
+//   previous/next.
 // The in-app players are the same in all three.
 function applyCarControls() {
-  const noBar = prefs.carControls === "nobar";
+  const noSeek = prefs.carControls === "nobar" || prefs.carControls === "progress";
   player.setCarControls(prefs.carControls);
   if (!("mediaSession" in navigator)) return;
   try {
     navigator.mediaSession.setActionHandler(
       "seekto",
-      noBar
+      noSeek
         ? null
         : (d) => {
             const ct = nowInChapter();
@@ -554,13 +557,13 @@ function applyCarControls() {
   } catch {}
 }
 ctx.applyCarControls = applyCarControls;
-// ?car=classic, ?car=nobar or ?car=scrubber (links for trying them in the car): saved, then the parameter
+// ?car=progress, ?car=classic, ?car=nobar or ?car=scrubber (links for trying them in the car): saved, then the parameter
 // leaves the address.
 {
   const url = new URL(location.href);
   const car = url.searchParams.get("car");
   if (car !== null) {
-    if (["classic", "nobar", "scrubber"].includes(car)) {
+    if (["progress", "classic", "nobar", "scrubber"].includes(car)) {
       prefs.carControls = car;
       savePrefs();
     }
