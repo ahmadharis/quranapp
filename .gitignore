@@ -31,12 +31,12 @@ tools/align/cache/
 __pycache__/
 *.pyc
 
-# Kept local for now: word-timing tooling (only its output, data/words/, is published)
-tools/
 
-# Documentation stays local, except the main README (data-source credits)
+# Documentation stays local, except the main README (data-source credits) and the word-timing
+# tools' README (how to run them)
 *.md
 !/README.md
+!/tools/align/README.md
 
 # Credentials and local config — never committed
 .env
