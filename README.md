@@ -19,20 +19,23 @@ screen as an app.
   English (Maulawi Sher Ali, Muhammad Zafrulla Khan, Short Commentary, Five Volume Commentary),
   Urdu (Hazrat Mirza Tahir Ahmad rh, Tafseer-e-Saghir), and French, Spanish, German, Italian,
   Bangla, Chinese, Norwegian, Swedish, Hebrew and Myanmar.
-- Word-by-word meanings in English or Urdu, and an introduction for each chapter.
+- Word-by-word meanings in English or Urdu.
+- An introduction for each chapter, in English or Urdu.
 
 ### Listen
-- Recitation by Qari Muhammad Ashiq, Maulana Feroz Alam, Aiman Almaliki, Mishary Rashid
-  AlAfasy and Idir Iken.
+- Recitation by Maulana Feroz Alam (the default), Qari Muhammad Ashiq, Aiman Almaliki, Mishary
+  Rashid AlAfasy and Idir Iken.
 - Verses join seamlessly into one continuous recitation, across chapters too.
 - Each word lights up as it is recited, in Read and in Listen.
 - A Listen view with only the Arabic and the player, made to be read at a glance.
-- Keeps playing with the screen off until you pause; play, pause and previous/next verse from
-  the lock screen, headphones and the car.
-- Repeat a verse, and play at 0.75×, 1× or 1.25×.
+- Each chapter plays as one track, with a seekbar through the whole chapter.
+- Keeps playing with the screen off until you pause; play, pause, previous/next chapter and the
+  chapter's progress on the lock screen, headphones and in the car (Android Auto, CarPlay).
+- Repeat a chapter, and play at 0.75×, 1× or 1.25×.
 
 ### Find your place
 - Go to any chapter, part or verse from one place: search by name, number, `36:58` or `part 30`.
+- On a touch screen, swipe right for the next chapter and left for the previous one.
 - Continue where you left off, and keep bookmarks on your device.
 
 ### Make it yours
@@ -41,6 +44,8 @@ screen as an app.
   chapter introduction; both can be hidden.
 - Full keyboard support (press `?` in the app for the shortcuts).
 - Reading works offline for chapters you have opened.
+- Updates arrive by themselves, never in the middle of a recitation, and keep your settings.
+- Move your settings, bookmarks and place to another device with a QR code, a link or a file.
 
 ## Where everything comes from
 
