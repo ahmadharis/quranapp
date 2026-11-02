@@ -18,6 +18,9 @@ node_modules/
 tests/out/
 tests/node_modules/
 
+# Local audio samples for timing analysis - never committed
+media/
+
 # Word-alignment work files: downloaded recitation audio, caches, virtualenvs
 *.mp3
 *.wav

@@ -14,7 +14,7 @@
 
 // The deploy replaces "quran-dev" with "quran-<commit>"; the version in the name means a
 // version bump always starts a fresh cache.
-const CACHE = "quran-dev-v1.2.3";
+const CACHE = "quran-dev-v1.3.0";
 const NETWORK_TIMEOUT_MS = 3000;
 const SHELL = [
   "./",
@@ -27,6 +27,7 @@ const SHELL = [
   "js/durations.js",
   "js/bookmarks.js",
   "js/transfer.js",
+  "js/swipe.js",
   "js/qr.js",
   "js/api.js",
   "js/artwork.js",

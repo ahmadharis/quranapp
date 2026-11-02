@@ -20,6 +20,7 @@ import { initPanel } from "./panel.js";
 import { initLayout } from "./layout.js";
 import { initInstall } from "./install.js";
 import { initTransfer } from "./transfer.js";
+import { initSwipe } from "./swipe.js";
 import { initSettings, applyTheme, applyScale, applyNazira, syncRadios, arrowRadios } from "./settings.js";
 
 const root = document.documentElement;
@@ -332,6 +333,18 @@ ctx.chapterStep = (d) => {
   userMoved();
   ctx.goTo({ ch: to, v: 1 }, { push: false });
 };
+
+// A swipe on the page: the chapter after (or before) the one on screen. While recitation plays
+// in Read mode it only shows that chapter, as a followed link does; otherwise it moves there.
+ctx.swipeChapter = (d) => {
+  const from = ctx.mode === "read" && ctx.viewCh ? ctx.viewCh : ctx.current.ch;
+  const to = from + d;
+  if (to < 1 || to > 114) return;
+  if (player.playing && ctx.mode === "read") ctx.reader.view({ ch: to, v: 1 });
+  else ctx.goTo({ ch: to, v: 1 });
+  ctx.live(chapterName(to));
+};
+initSwipe(ctx, $("#main"));
 
 function renderProgress(fraction = 0) {
   const { ch, v } = ctx.current;
