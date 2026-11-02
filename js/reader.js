@@ -6,7 +6,7 @@ import { PART_STARTS, PART_QUARTERS, PART_HALVES, PART_THREE_QUARTERS } from "./
 import { getLayers, TRANSLATIONS } from "./api.js";
 import { prefs, savePrefs, shownTranslations } from "./prefs.js";
 import { isBookmarked, toggleBookmark, bookmarks } from "./bookmarks.js";
-import { $, $$, h, icon, key, verseCount, chapterName, chapterArabic, arDigits, renderArabic, tokens, isWord, safeHtml, markFootnotes, reducedMotion } from "./util.js";
+import { $, $$, h, icon, key, verseCount, chapterName, chapterArabic, arDigits, renderArabic, tokens, isWord, safeHtml, markFootnotes, reducedMotion, pageTurn, hintTurn, turnFor } from "./util.js";
 
 // alislam's part, quarter, half and ثلث points.
 const MARKERS = new Map();
@@ -93,6 +93,24 @@ export function initReader(ctx) {
 
   const verseEl = (v) => reader.querySelector(`.verse[data-v="${v}"]`);
 
+  // Nazira justifies its lines like a mushaf page, but browsers stretch only the spaces (no
+  // kashida), so on a column under ~11em (a phone at a larger text size: three or four words a
+  // line) the gaps get huge. There the lines are set flush right instead. Checked on resize,
+  // when the text size, Nazira, the mode or a sidebar changes (attributes on <html>) and when a
+  // chapter is shown. (Not a ResizeObserver on the reader: alongside the player's observer it
+  // reports loop errors in WebKit.)
+  function fitMeasure() {
+    if (!prefs.nazira || !reader.clientWidth) return;
+    const cs = getComputedStyle(reader);
+    const measure = reader.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const narrow = measure < 11 * parseFloat(cs.fontSize);
+    if (narrow !== reader.classList.contains("narrow-measure")) reader.classList.toggle("narrow-measure", narrow);
+  }
+  let measureFrame = 0;
+  const fitSoon = () => (measureFrame ||= requestAnimationFrame(() => ((measureFrame = 0), fitMeasure())));
+  window.addEventListener("resize", fitSoon);
+  new MutationObserver(fitSoon).observe(document.documentElement, { attributeFilter: ["style", "data-nazira", "data-mode", "data-contents", "data-panel", "data-focus"] });
+
   function setTrAttrs() {
     const n = shownTranslations().length;
     document.documentElement.toggleAttribute("data-tr", n > 0);
@@ -105,6 +123,7 @@ export function initReader(ctx) {
       scrollToVerse(focusV, "auto");
       return;
     }
+    const turn = turnFor(ctx.viewCh, ch); // none on first load
     ctx.viewCh = ch;
     const count = verseCount(ch);
     const frag = document.createDocumentFragment();
@@ -120,7 +139,7 @@ export function initReader(ctx) {
       frag.append(art);
     }
     if (ch < 114) {
-      frag.append(h("div.chapter-end", {}, h("button.next-chapter", { type: "button", text: `Continue to ${chapterName(ch + 1)}`, onclick: () => ctx.goTo({ ch: ch + 1, v: 1 }) })));
+      frag.append(h("div.chapter-end", {}, h("button.next-chapter", { type: "button", text: `Continue to ${chapterName(ch + 1)}`, onclick: () => (hintTurn(ch + 1, "slide", 1), ctx.goTo({ ch: ch + 1, v: 1 })) })));
     }
     bar.hidden = true;
     barArt = null;
@@ -131,6 +150,26 @@ export function initReader(ctx) {
     markCurrent();
     loadText(ch, focusV);
     loadLayers(ch);
+    fitMeasure();
+    if (turn && ctx.mode === "read") pageTurn(reader, turn.kind, turn.d);
+  }
+
+  // A pause mark inside a verse (ۚ ؕ ۙ …) is a token of its own after a space, so a line could
+  // break before it and leave the mark alone at the start of the next line. Each one is kept
+  // on the line of the word it follows, as in a printed mushaf: the word, the space and the
+  // mark(s) go in one no-wrap span. Only elements move; the text is untouched.
+  function keepPauseMarks(el) {
+    for (const orn of $$(":scope > .orn", el)) {
+      const word = orn.previousElementSibling;
+      if (!word) continue;
+      const group = word.classList.contains("wq") ? word : h("span.wq");
+      if (group !== word) {
+        word.before(group);
+        group.append(word);
+      }
+      while (group.nextSibling && group.nextSibling !== orn) group.append(group.nextSibling);
+      group.append(orn);
+    }
   }
 
   function fill(ch, rows) {
@@ -139,6 +178,7 @@ export function initReader(ctx) {
       const art = verseEl(v);
       if (art?.classList.contains("loading")) {
         renderArabic($(".v-ar", art), ar);
+        keepPauseMarks($(".v-ar", art));
         art.classList.remove("loading");
       }
     }
@@ -448,7 +488,10 @@ export function initReader(ctx) {
   function backToRecited() {
     lastUserScroll = 0;
     chip.hidden = true;
-    if (ctx.current.ch !== ctx.viewCh) showChapter(ctx.current.ch, ctx.current.v);
+    if (ctx.current.ch !== ctx.viewCh) {
+      hintTurn(ctx.current.ch, "fade");
+      showChapter(ctx.current.ch, ctx.current.v);
+    }
     scrollToVerse(ctx.current.v);
   }
 
@@ -486,8 +529,10 @@ export function initReader(ctx) {
       return;
     }
     chip.hidden = true;
-    if (ctx.current.ch !== ctx.viewCh) showChapter(ctx.current.ch, ctx.current.v);
-    else scrollToVerse(ctx.current.v);
+    if (ctx.current.ch !== ctx.viewCh) {
+      hintTurn(ctx.current.ch, "fade");
+      showChapter(ctx.current.ch, ctx.current.v);
+    } else scrollToVerse(ctx.current.v);
   }
 
   // Nazira mode: a verse can run over many lines, so keep the recited line itself in view.
@@ -519,7 +564,10 @@ export function initReader(ctx) {
   ctx.bus.addEventListener("mode", () => {
     chip.hidden = true;
     if (ctx.mode !== "read") return;
-    if (ctx.current.ch !== ctx.viewCh) showChapter(ctx.current.ch, ctx.current.v);
+    if (ctx.current.ch !== ctx.viewCh) {
+      hintTurn(ctx.current.ch, null); // switching mode is not a page turn
+      showChapter(ctx.current.ch, ctx.current.v);
+    }
     else markCurrent();
     requestAnimationFrame(() => scrollToVerse(ctx.current.v, "auto"));
   });

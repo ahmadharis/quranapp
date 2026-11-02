@@ -7,7 +7,7 @@
 // timings when there are any, otherwise by how much of the verse has been heard.
 
 import { prevVerse, nextVerse } from "./player.js";
-import { $, $$, h, key, renderArabic, tokens, isWord, chapterArabic } from "./util.js";
+import { $, $$, h, key, renderArabic, tokens, isWord, chapterArabic, pageTurn, turnFor } from "./util.js";
 
 export const landscapeQuery = matchMedia("(max-height: 499px) and (min-width: 640px)");
 
@@ -23,6 +23,7 @@ export function initListen(ctx) {
   view.prepend(msg);
 
   let shown = ""; // verse key on the stage
+  let turnCh = 0; // the chapter the stage last showed, for the page turn
   let lines = []; // [{from, to, weight}] token ranges of the current verse, in landscape
   let lineToks = [];
   let lineWords = []; // per line: [firstWord, lastWord]
@@ -36,6 +37,7 @@ export function initListen(ctx) {
   function render() {
     if (ctx.mode !== "listen") return;
     const pos = ctx.current;
+    turnCh ||= pos.ch;
     const prev = prevVerse(pos);
     const next = nextVerse(pos);
     msg.hidden = true;
@@ -237,8 +239,18 @@ export function initListen(ctx) {
   document.documentElement.toggleAttribute("data-landscape", landscapeQuery.matches);
   document.fonts?.ready.then(() => layoutLines(true));
 
-  ctx.bus.addEventListener("position", () => render());
+  // A new chapter on the stage turns like a page (see pageTurn); recitation running on into
+  // the next chapter only fades. Entering Listen or the first verse shown is not a turn.
+  ctx.bus.addEventListener("position", (e) => {
+    const from = turnCh;
+    turnCh = ctx.current.ch;
+    render();
+    if (ctx.mode !== "listen" || from === turnCh) return;
+    const turn = e.detail?.source === "player" ? (from ? { kind: "fade" } : null) : turnFor(from, turnCh);
+    if (turn) pageTurn(isLandscape() ? $(".line") : stage, turn.kind, turn.d);
+  });
   ctx.bus.addEventListener("mode", () => {
+    turnCh = ctx.current.ch;
     view.hidden = ctx.mode !== "listen";
     shown = "";
     lineFor = "";

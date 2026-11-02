@@ -538,53 +538,22 @@ if ("mediaSession" in navigator) {
   // Track buttons move by chapter (the track), as the in-app ⏮ ⏭ do.
   set("nexttrack", () => ctx.chapterStep(1));
   set("previoustrack", () => ctx.chapterStep(-1));
-  // No ±seek buttons anywhere: the controls are previous/next chapter and the seekbar.
+  // No ±seek buttons anywhere: the controls are previous/next chapter and the seekbar. (Android
+  // Auto may still show Chrome's own ±10 s buttons for seekable media, Chromium issue 349529659.)
   set("seekforward", null);
   set("seekbackward", null);
+  // The lock screen's and car's progress bar seeks through the chapter.
+  set("seekto", (d) => {
+    const ct = nowInChapter();
+    if (ct && Number.isFinite(d?.seekTime)) seekChapterFraction(clamp((d.seekTime * 1000) / ct.duration, 0, 1));
+  });
 }
-// Car controls (prefs.carControls), all with previous chapter · play/pause · next chapter and
-// one track per chapter. Android Auto shows Chrome's own ±10 s buttons in place of
-// previous/next when the media element is seekable (Chromium issue 349529659), so:
-// - "scrubber" (Standard): a normal seekable stream, chapter progress and seek-to.
-// - "classic" (Previous/next + progress): the stream looks live to the browser (MSE duration
-//   Infinity, js/player.js), while the page still gives chapter progress and seek-to.
-// - "nobar" (Previous/next only): live-looking stream, no seek-to, no progress.
-// - "progress" (Previous/next + progress, not draggable): a normal stream and chapter progress,
-//   but no seek-to — how the car behaved before the chapter-level player, when it still showed
-//   previous/next.
-// The in-app players are the same in all three.
-function applyCarControls() {
-  const noSeek = prefs.carControls === "nobar" || prefs.carControls === "progress";
-  player.setCarControls(prefs.carControls);
-  if (!("mediaSession" in navigator)) return;
-  try {
-    navigator.mediaSession.setActionHandler(
-      "seekto",
-      noSeek
-        ? null
-        : (d) => {
-            const ct = nowInChapter();
-            if (ct && Number.isFinite(d?.seekTime)) seekChapterFraction(clamp((d.seekTime * 1000) / ct.duration, 0, 1));
-          },
-    );
-  } catch {}
-}
-ctx.applyCarControls = applyCarControls;
-// ?car=progress, ?car=classic, ?car=nobar or ?car=scrubber (links for trying them in the car): saved, then the parameter
-// leaves the address.
-{
+// Old links for trying car control experiments (?car=…): the parameter just leaves the address.
+if (new URL(location.href).searchParams.has("car")) {
   const url = new URL(location.href);
-  const car = url.searchParams.get("car");
-  if (car !== null) {
-    if (["progress", "classic", "nobar", "scrubber"].includes(car)) {
-      prefs.carControls = car;
-      savePrefs();
-    }
-    url.searchParams.delete("car");
-    history.replaceState(history.state, "", url.href);
-  }
+  url.searchParams.delete("car");
+  history.replaceState(history.state, "", url.href);
 }
-applyCarControls();
 
 // How the person is interacting: a tap or click hides focus rings that a keyboard shows.
 window.addEventListener("pointerdown", () => root.setAttribute("data-pointer", ""), { capture: true, passive: true });
@@ -636,13 +605,26 @@ renderNow();
 renderBookmark();
 ctx.layout.apply();
 
+// ---------- paused in the background ----------
+// Chrome on Android freezes a page that has been in the background for a few minutes without
+// sound; a paused recitation then loses its lock-screen / headphone controls (the headphones'
+// Play goes to the last music app) until the app is opened again. Nothing a page may do keeps
+// them, so: the place is saved before a freeze, and on return the controls are sent again so
+// Play works at once. A page Android discarded meanwhile reopens at the saved verse (#/ch:v).
+document.addEventListener("freeze", () => savePrefs());
+window.addEventListener("pagehide", () => savePrefs());
+document.addEventListener("resume", () => player.reannounce());
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && player.reannounce());
+
 // ---------- updates ----------
 // A new deploy installs its service worker in the background (sw.js: skipWaiting + claim).
 // The page then reloads into it — but recitation never breaks for it: only when nothing is
 // playing (or buffering, or between chunks), and after something was played in this session,
-// only once it has been paused for 2 minutes, or the app goes to the background or is
-// reopened while paused, or recitation has reached its end. Never while a sheet or dialog is
-// open or a row is being dragged. One reload per update; afterwards a quiet toast says so.
+// only while the app is on screen: once it has been paused for 2 minutes, or is reopened while
+// paused, or recitation has reached its end. Never in the background after playing — a reload
+// there ends the paused recitation's media session, and the headphones' or car's Play button
+// would then start another app. Never while a sheet or dialog is open or a row is being
+// dragged. One reload per update; afterwards a quiet toast says so.
 const localDev = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const UPDATE_AFTER_PAUSE_MS = 2 * 60 * 1000;
 let updateWaiting = false;
@@ -655,7 +637,8 @@ function updateIsSafe(reason) {
   if (player.playing || player.buffering || player.backend?.switching) return false;
   if (document.querySelector("dialog[open], .r.dragging, .grip[aria-pressed='true']")) return false;
   if (!everPlayed) return true;
-  if (reason === "hidden" || reason === "visible" || reason === "ended") return true;
+  if (document.visibilityState === "hidden") return false;
+  if (reason === "visible" || reason === "ended") return true;
   return pausedSince > 0 && Date.now() - pausedSince >= UPDATE_AFTER_PAUSE_MS;
 }
 function applyUpdate(reason) {

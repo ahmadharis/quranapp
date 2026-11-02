@@ -1,12 +1,7 @@
-// Car controls, three experiments (?car=… or Settings > Car controls), all with previous/next
-// chapter, play/pause/stop and one track per chapter:
-// - scrubber (Standard): seekable stream, seek-to and chapter position state.
-// - classic (Previous/next + progress): live stream on Chromium (MSE duration Infinity, so
-//   Chrome adds no ±10 s actions of its own), seek-to and position state kept.
-// - nobar (Previous/next only): live stream, no seek-to, no position state.
-// - progress (Previous/next + progress, fixed): seekable stream, position state, no seek-to.
-// In every mode the in-app seekbar (keyboard, drag, far drag), ⏭ and chapter crossing work, and
-// the car's previous/next track (and seek-to where offered) land correctly.
+// Lock screen and car controls (Media Session): previous/next chapter, play/pause/stop, the
+// chapter's progress and seek-to, one track per chapter. The in-app seekbar (keyboard, drag,
+// far drag), ⏭ and the car's previous/next track and seek-to land correctly. Old ?car=… links
+// only lose the parameter, and Settings has no car controls any more.
 import { launch, context, open, position, waitFor, checker, OUT } from "./lib/browsers.mjs";
 import { durations, total, before, locate } from "./lib/durations.mjs";
 import { CHAPTERS } from "../js/quran-data.js";
@@ -31,19 +26,13 @@ const handlers = (page) => page.evaluate(() => Object.keys(window.__h).filter((k
 const state = (page) => page.evaluate(() => ({ ps: window.__ps, clear: window.__psClear, duration: window.quranPlayer.audio.duration, backend: window.quranPlayer.backend.constructor.name, search: location.search, stored: JSON.parse(localStorage.getItem("quran.prefs")).carControls }));
 
 const b = await launch("chromium");
-const BASE_H = "nexttrack,pause,play,previoustrack,stop";
-const WANT = {
-  scrubber: { handlers: "nexttrack,pause,play,previoustrack,seekto,stop", ps: true, live: false },
-  classic: { handlers: "nexttrack,pause,play,previoustrack,seekto,stop", ps: true, live: true },
-  nobar: { handlers: BASE_H, ps: false, live: true },
-  progress: { handlers: BASE_H, ps: true, live: false }, // chapter progress, no seek-to
-};
+const WANT = { standard: { handlers: "nexttrack,pause,play,previoustrack,seekto,stop", ps: true, live: false } };
 try {
   for (const [mode, want] of Object.entries(WANT)) {
-    // Seeded with another mode, so the link has to switch it.
-    const ctx = await context(b, { prefs: { reciter: "rashid", mode: "listen", carControls: mode === "scrubber" ? "nobar" : "scrubber" }, viewport: { width: 1440, height: 900 } });
+    // Seeded with an experiment of 1.2.1–1.3.x and opened from an old link: both are gone.
+    const ctx = await context(b, { prefs: { reciter: "rashid", mode: "listen", schema: 4, carControls: "nobar" }, viewport: { width: 1440, height: 900 } });
     await ctx.addInitScript(SPY);
-    const { page, errors } = await open(ctx, `?car=${mode}#/36:1`);
+    const { page, errors } = await open(ctx, `?car=nobar#/36:1`);
     await page.evaluate(() => {
       window.__meta.length = 0;
       window.__ps = 0;
@@ -52,7 +41,7 @@ try {
     await page.waitForTimeout(4000);
     const s = await state(page);
     const h = await handlers(page);
-    t.check(s.search === "" && s.stored === mode, `${mode}: address "${s.search}", saved ${s.stored}`);
+    t.check(s.search === "" && s.stored === undefined, `${mode}: address "${s.search}", saved ${s.stored}`);
     t.check(h === want.handlers, `${mode}: handlers ${h}`);
     t.check(want.ps ? s.ps > 0 : s.ps === 0 && s.clear >= 1, `${mode}: position state set ${s.ps} time(s), cleared ${s.clear}`);
     t.check(s.backend === "StreamBackend" && (want.live ? s.duration === Infinity : Number.isFinite(s.duration)), `${mode}: ${s.backend} duration ${s.duration}`);
@@ -105,45 +94,13 @@ try {
     await ctx.close();
   }
 
-  // Chapter crossing 1:7 → 2:1 with the live stream: one metadata change, to Al-Baqarah.
-  for (const mode of ["classic", "nobar"]) {
-    const ctx = await context(b, { prefs: { reciter: "rashid", carControls: mode } });
-    await ctx.addInitScript(SPY);
-    const { page, errors } = await open(ctx, "#/1:7");
-    await page.evaluate(() => {
-      window.__meta.length = 0;
-      window.quranPlayer.play();
-    });
-    await waitFor(page, () => window.quranPlayer.position.ch === 2, 25000).catch(() => {});
-    await page.waitForTimeout(1500);
-    const meta = await page.evaluate(() => window.__meta);
-    const r = await page.evaluate(() => ({ hash: location.hash, d: window.quranPlayer.audio.duration }));
-    t.check(r.hash.startsWith("#/2:") && r.d === Infinity, `${mode} crossing: ${r.hash}, duration ${r.d}`);
-    t.check(meta.length === 1 && meta[0] === "Al-Baqarah|Mishary Rashid AlAfasy|Holy Quran", `${mode} crossing metadata: ${JSON.stringify(meta)}`);
-    t.check(!errors.length, `${mode} crossing: console errors ${errors.join(" | ")}`);
-    await ctx.close();
-  }
-
-  // Settings > Car controls: the three choices, switching live.
+  // Settings: no car controls.
   {
     const ctx = await context(b, { prefs: { reciter: "rashid" } });
-    await ctx.addInitScript(SPY);
     const { page } = await open(ctx, "#/36:1");
-    t.check((await state(page)).stored === "scrubber" || (await page.evaluate(async () => (await import("./js/prefs.js")).prefs.carControls)) === "scrubber", "default is not scrubber");
-    await page.evaluate(() => window.quranPlayer.play());
-    await page.waitForTimeout(3000);
     await page.click("#open-settings");
-    const labels = await page.$$eval(".car-choices [role=radio] b", (els) => els.map((e) => e.textContent).join(" | "));
-    t.check(labels === "Previous/next + progress (fixed) | Previous/next + progress | Previous/next only | Standard", `Settings labels: ${labels}`);
-    await page.click('[data-car="nobar"]');
-    await page.waitForTimeout(1500);
-    const n = await state(page);
-    t.check(n.stored === "nobar" && !(await handlers(page)).includes("seekto") && n.duration === Infinity && n.clear >= 1, `Settings → nobar: ${JSON.stringify(n)}`);
-    await page.click('[data-car="scrubber"]');
-    await page.evaluate(() => (window.__ps = 0));
-    await page.waitForTimeout(2000);
-    const sc = await state(page);
-    t.check(sc.stored === "scrubber" && (await handlers(page)).includes("seekto") && Number.isFinite(sc.duration) && sc.ps > 0, `Settings → scrubber: ${JSON.stringify(sc)}`);
+    await page.waitForTimeout(400);
+    t.check(!(await page.$(".car-choices, #car-cap")), "Settings still shows car controls");
     await ctx.close();
   }
 } finally {

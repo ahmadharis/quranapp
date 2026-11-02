@@ -12,6 +12,8 @@
 //       another device can keep whichever last position is newer.
 //   4 - 1.2.1: adds `carControls` ("scrubber" | "classic" | "nobar"; see applyCarControls in
 //       app.js). `repeat` now repeats the chapter (it repeated the verse); kept as it is.
+//   5 - 1.4.0: drops `carControls` (the car control experiments ended; the standard controls
+//       stayed); adds `introLang` ("en" | "ur"), the language of "About this chapter".
 // To change the shape: bump SCHEMA and add a step to STEPS that turns the old values into the
 // new ones.
 
@@ -28,7 +30,7 @@ export const validPos = (p) =>
 
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 
-export const SCHEMA = 4;
+export const SCHEMA = 5;
 // STEPS[n] turns schema-n prefs into schema n+1, in place.
 const STEPS = {
   1: (p) => {
@@ -41,6 +43,9 @@ const STEPS = {
   },
   3: (p) => {
     if (!["progress", "classic", "nobar"].includes(p.carControls)) p.carControls = "scrubber"; // the behavior before 1.2.1
+  },
+  4: (p) => {
+    delete p.carControls;
   },
 };
 
@@ -76,11 +81,12 @@ export function normalizePrefs(saved) {
     nazira: false, // Nazira mode: Read shows the Arabic only, verses flowing like a printed page
     speed: 1,
     followWords: true, // light each word as it is recited, where word timings exist
-    carControls: "scrubber", // lock screen / car: "scrubber", "progress", "classic" or "nobar" (app.js, applyCarControls)
+    introLang: "en", // "About this chapter": "en" or "ur"
   };
   const p = { ...defaults, ...migrate(saved) };
   if (!RECITERS.some((r) => r.id === p.reciter)) p.reciter = defaults.reciter;
   if (!["read", "listen"].includes(p.mode)) p.mode = defaults.mode;
+  if (!["en", "ur"].includes(p.introLang)) p.introLang = defaults.introLang;
   if (!validPos(p.last)) p.last = defaults.last;
   else p.last = { ch: p.last.ch, v: p.last.v };
   if (!(Number.isFinite(p.lastAt) && p.lastAt >= 0)) p.lastAt = 0;
@@ -114,7 +120,6 @@ export function normalizePrefs(saved) {
   p.repeat = p.repeat === true;
   if (!SPEEDS.includes(p.speed)) p.speed = 1;
   p.followWords = p.followWords !== false;
-  if (!["scrubber", "progress", "classic", "nobar"].includes(p.carControls)) p.carControls = defaults.carControls;
   return p;
 }
 

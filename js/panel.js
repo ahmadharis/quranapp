@@ -1,11 +1,25 @@
 // The side panel from 1280px (Read mode only): the meaning of the word being recited (when
-// word timings and meanings exist) and the chapter introduction from GET /chapter/intro/{ch}.
+// word timings and meanings exist) and the chapter introduction from GET /chapter/intro/{ch},
+// in English or Urdu (a tab, remembered). alislam's English introductions have headings; the
+// Urdu ones are plain paragraphs.
 // Each section shows only when it has something to show; the player stays in the bottom dock.
 
 import { getIntro, getLayers } from "./api.js";
 import { hasWordTimings } from "./words.js";
-import { prefs } from "./prefs.js";
+import { prefs, savePrefs } from "./prefs.js";
+import { syncRadios, arrowRadios } from "./settings.js";
 import { $, h, key, verseCount, chapterName, partsLabel, tokens, isWord, safeHtml } from "./util.js";
+
+// alislam's English introductions open with "(Revealed before Hijrah)" or similar: that line
+// becomes a fact ("Revealed: Before Hijrah"); the rest is shown as it is.
+function splitRevealed(html) {
+  const body = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
+  const first = body.firstElementChild;
+  const m = first?.tagName === "P" && first.textContent.trim().match(/^\(\s*Revealed\s+([^()]+?)\s*\)\.?$/i);
+  if (!m) return { revealed: "", html };
+  first.remove();
+  return { revealed: m[1].charAt(0).toUpperCase() + m[1].slice(1), html: body.innerHTML };
+}
 
 export function initPanel(ctx) {
   const side = $("#side");
@@ -24,10 +38,25 @@ export function initPanel(ctx) {
     { hidden: true, "aria-labelledby": "ab-h" },
     h("h2#ab-h", { text: "About this chapter" }),
     h("dl.facts"),
+    // The language tabs sit right above the text they change.
+    h("div.seg.intro-lang", { role: "radiogroup", "aria-label": "Language of the introduction" }),
     h("div.intro", { lang: "en" }),
     h("button.link.more-intro", { type: "button", "aria-expanded": "false", text: "Read more" }),
   );
   side.append(cw, about);
+  const langs = $(".intro-lang", about);
+  for (const [v, label, lang] of [["en", "English", "en"], ["ur", "اردو", "ur"]]) {
+    langs.append(
+      h("button", { type: "button", role: "radio", "data-lang": v, lang, text: label, onclick: () => {
+        if (prefs.introLang === v) return;
+        prefs.introLang = v;
+        savePrefs();
+        showIntro();
+      } }),
+    );
+  }
+  arrowRadios(langs);
+  let intro = null; // the current chapter's {en, ur}
   $(".more-intro", about).addEventListener("click", (e) => {
     const open = e.currentTarget.getAttribute("aria-expanded") !== "true";
     e.currentTarget.setAttribute("aria-expanded", String(open));
@@ -53,17 +82,14 @@ export function initPanel(ctx) {
       h("dt", { text: "Parts" }),
       h("dd", { text: partsLabel(ch).replace(/^Parts? /, "") }),
     );
+    intro = null;
     getIntro(ch).then(
-      (intro) => {
+      (got) => {
         if (introFor !== ch) return;
-        $(".intro", about).replaceChildren(safeHtml(intro.en));
-        about.classList.remove("open");
-        const btn = $(".more-intro", about);
-        btn.setAttribute("aria-expanded", "false");
-        btn.textContent = "Read more";
+        intro = got;
+        showIntro();
         introOk = true;
         about.hidden = false;
-        requestAnimationFrame(() => (btn.hidden = $(".intro", about).scrollHeight <= $(".intro", about).clientHeight + 4));
         ctx.bus.dispatchEvent(new Event("panel"));
       },
       () => {
@@ -71,6 +97,28 @@ export function initPanel(ctx) {
         ctx.bus.dispatchEvent(new Event("panel"));
       },
     );
+  }
+
+  // The introduction in the chosen language (the other one when that is missing).
+  function showIntro() {
+    if (!intro) return;
+    const lang = intro[prefs.introLang] ? prefs.introLang : prefs.introLang === "ur" ? "en" : "ur";
+    syncRadios(langs, (b) => b.dataset.lang === prefs.introLang);
+    langs.hidden = !intro.en || !intro.ur;
+    const en = splitRevealed(intro.en);
+    $(".facts .revealed", about)?.remove();
+    if (en.revealed) $(".facts", about).append(h("div.revealed", {}, h("dt", { text: "Revealed" }), h("dd", { text: en.revealed })));
+    const ur = lang === "ur";
+    const box = $(".intro", about);
+    Object.assign(box, { lang, dir: ur ? "rtl" : "ltr" });
+    box.classList.toggle("urdu", ur);
+    box.replaceChildren(safeHtml(ur ? intro.ur : en.html));
+    about.classList.remove("open");
+    const btn = $(".more-intro", about);
+    btn.setAttribute("aria-expanded", "false");
+    btn.textContent = "Read more";
+    btn.hidden = true;
+    requestAnimationFrame(() => (btn.hidden = box.scrollHeight <= box.clientHeight + 4));
   }
 
   // The word lens: gloss for the word being recited, in the chosen word-meaning language

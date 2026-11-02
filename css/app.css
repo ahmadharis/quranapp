@@ -177,7 +177,7 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 /* ---------- frame ---------- */
 .app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100dvh; }
 .topbar { grid-column: 1 / -1; grid-row: 1; }
-.main { position: relative; min-width: 0; grid-column: 1; grid-row: 2; }
+.main { position: relative; min-width: 0; grid-column: 1; grid-row: 2; overflow-x: clip; } /* clip: the page-turn slide (util.js pageTurn) never makes the page scroll sideways */
 .side { display: none; }
 [data-mode="listen"] .side { display: none; }
 
@@ -224,7 +224,9 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
   /* Room at the bottom for the docked player (64px + its margins), so nothing is covered. */
   padding: 0 max(20px, env(safe-area-inset-right)) calc(112px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
-.chapter-head { text-align: center; padding: 4px 0 8px; }
+/* ManzoorNaskh's marks rise to the top of the line box: clear room under the top bar, growing
+   with the text size. */
+.chapter-head { text-align: center; padding: calc(12px + 12px * var(--scale)) 0 8px; }
 .sura { font-size: calc(32px * var(--scale)); line-height: 1.6; color: var(--gold-ink); }
 
 .verse { position: relative; padding: 10px 12px; margin: 2px -12px; border-radius: 18px; cursor: pointer; transition: background-color 0.3s; }
@@ -250,6 +252,14 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 .timed .orn { color: var(--ink3); }
 @media (prefers-reduced-motion: reduce) { .w { transition: none; } }
 .orn { color: var(--ink2); }
+/* A pause mark inside a verse (ۚ ؕ ۙ ۛ …) is its own token with a space on each side, and most
+   are combining marks with no width of their own, so they left a double space between two
+   words (and justified text stretched both). Pulling the mark in by half a space on each side
+   leaves about one space's gap with the mark centred over it, as in a printed mushaf. reader.js
+   wraps it with the word before it (.wq) so it never starts a line. ManzoorNaskh's space is
+   about 0.33em. */
+.wq { white-space: nowrap; }
+.wq > .orn { margin-inline: -0.165em; }
 
 .v-tr:empty, .v-wm:empty { display: none; }
 /* The verse bar: Play, Bookmark, Copy — under the selected verse. */
@@ -351,6 +361,13 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 [data-nazira] .reader .verse { display: inline; padding: 0; margin: 0; border-radius: 0; background: none; }
 [data-nazira] .reader .verse .v-ar { display: inline; font-size: inherit; line-height: inherit; text-align: inherit; }
 [data-nazira] .reader .verse.loading { display: none; }
+/* A narrow measure (see reader.js) is set flush right: even spaces beat a straight left edge. */
+[data-nazira][data-mode="read"] .reader.narrow-measure { text-align: right; word-spacing: 0.06em; }
+/* The verses (and part markers) are separate elements with no space between them, so a verse-end
+   ornament touched the next verse's first word and, in Chromium, gave no line break there: the
+   last word, the ornament and the next word became one unbreakable block. A real space after
+   each restores the gap and the break, like any space between words. */
+[data-nazira] .reader .verse:not(.bismillah) .v-ar::after, [data-nazira] .reader .marker::after { content: " "; }
 /* The Bismillah keeps its own line, as in Read. */
 [data-nazira] .reader .verse.bismillah { display: block; margin: 0 0 4px; }
 [data-nazira] .reader .verse.current { background: none; }
@@ -361,7 +378,7 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 [data-nazira] .reader .verse.picked { background: none; }
 [data-nazira] .reader .verse:focus-visible { outline: none; }
 [data-nazira] .reader .verse:focus-visible .v-ar { text-decoration: underline 2px var(--accent); text-underline-offset: 0.35em; }
-[data-nazira] .reader .marker { display: inline; margin: 0 0.15em; gap: 0; font-size: inherit; letter-spacing: normal; text-transform: none; }
+[data-nazira] .reader .marker { display: inline; margin: 0; gap: 0; font-size: inherit; letter-spacing: normal; text-transform: none; }
 [data-nazira] .reader .marker::before, [data-nazira] .reader .marker > span:first-child { display: none; }
 [data-nazira] .reader .marker .ar { font-size: 0.42em; color: var(--gold-ink); vertical-align: 0.6em; }
 .vbar.floating { position: absolute; z-index: 5; margin: 0; padding: 6px; border-radius: 28px; background: var(--surface); box-shadow: var(--shadow), 0 0 0 1px var(--line); font-family: var(--ui); line-height: 1.2; text-align: left; flex-wrap: nowrap; }
@@ -392,9 +409,16 @@ svg { display: block; width: 22px; height: 22px; flex: none; }
 .listen { bottom: var(--lp-h, 0px); }
 .stage {
   flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
-  display: grid; grid-template-rows: minmax(16px, 1fr) auto auto auto minmax(16px, 1.5fr); text-align: center;
+  /* The top row never shrinks below a clearance that grows with the text: ManzoorNaskh's marks
+     reach the very top of the line box, so a bare 16px left the chapter name's marks almost on
+     the top bar's divider. Tall screens still centre the verse through the 1fr. */
+  display: grid; grid-template-rows: minmax(calc(10px + var(--ar-size) * 0.5), 1fr) auto auto auto minmax(16px, 1.5fr); text-align: center;
   padding: 0 max(22px, env(safe-area-inset-right)) 16px max(22px, env(safe-area-inset-left));
   width: 100%; max-width: 1100px; margin: 0 auto;
+  /* When a long verse or a large text size makes the stage scroll, the text fades out just
+     under the divider instead of being cut by it. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px);
+  mask-image: linear-gradient(to bottom, transparent, #000 14px);
 }
 .stage > :nth-child(1) { grid-row: 2; }
 .stage > :nth-child(2) { grid-row: 3; }
@@ -589,10 +613,20 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 14px; margin-bottom: 14px; }
 .facts dt { color: var(--ink2); }
 .facts dd { font-weight: 600; }
-.intro { font-family: var(--tr); font-size: 15px; line-height: 1.6; color: var(--ink2); max-height: 22em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.intro-lang { width: fit-content; margin: 18px 0 12px; }
+.intro-lang[hidden] { display: none; }
+.intro-lang button { min-height: 30px; padding: 0 12px; font-size: 13px; }
+.intro-lang [lang="ur"] { font-family: var(--urf); font-size: 15px; line-height: 1; }
+.facts .revealed { display: contents; }
+.intro { font-family: var(--tr); font-size: 15px; line-height: 1.6; color: var(--ink2); max-height: 26em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
 .about.open .intro { max-height: none; -webkit-mask-image: none; mask-image: none; }
-.intro p + p, .intro h3 { margin-top: 10px; }
-.intro h3, .intro h4 { font: 650 14px var(--ui); color: var(--ink); }
+.intro p + p { margin-top: 10px; }
+/* alislam's section headings: a clear step in the text, with a short gold rule above. */
+.intro h3, .intro h4 { font: 650 15px/1.35 var(--ui); color: var(--ink); margin: 22px 0 8px; padding-top: 12px; position: relative; }
+.intro h3::before, .intro h4::before { content: ""; position: absolute; top: 0; left: 0; width: 28px; height: 2px; border-radius: 1px; background: var(--gold); }
+.intro > h3:first-child, .intro > h4:first-child { margin-top: 4px; }
+.intro.urdu { font-family: var(--urf); font-size: 19px; line-height: 2.1; text-align: right; }
+.intro.urdu p + p { margin-top: 14px; }
 .more-intro { margin-top: 6px; padding: 0; }
 
 .focus-hint { position: fixed; left: 24px; bottom: calc(var(--lp-h, 96px) + 8px); font-size: 13px; color: var(--ink2); z-index: 14; }
@@ -728,10 +762,27 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   }
   .contents { box-shadow: 1px 0 0 var(--line); }
   [data-panel] .side { box-shadow: -1px 0 0 var(--line); }
-  .main { container-type: inline-size; }
-  /* Arabic alone: a measure of 920px; with translations beside it, 1400px. */
-  .reader { max-width: min(100%, 920px); margin-inline: auto; padding-left: 32px; padding-right: 32px; }
-  [data-tr] .reader { max-width: min(100%, 1400px); }
+  /* A fluid reading width: the text grows with the middle area (the window less the open
+     sidebars; cqi is 1% of it), not with fixed caps. Side margins are ~5% of the middle and
+     the line is a measure in the Arabic's own em, so a wider middle gets longer lines rather
+     than empty gutters. The type grows modestly with the window (Arabic 35px at 1280 to 54px
+     on an ultrawide; translations 16 to 19px), not with the sidebars, so opening one reflows
+     the lines but never changes the size. Translations keep ~72 characters a line. On an
+     ultrawide what is left is even margin on both sides. */
+  .main {
+    container-type: inline-size;
+    --gut: clamp(32px, 5cqi, 150px);
+    --colgap: clamp(40px, 3cqi, 64px);
+    --ar-size: calc(clamp(30px, 0.9vw + 24px, 54px) * var(--scale));
+    --tr-size: calc(clamp(16px, 0.15vw + 14px, 19px) * var(--scale));
+    --tr-col: calc(var(--tr-size) * 36); /* one translation column, ~72 characters */
+    --ar-col: calc(var(--ar-size) * 22); /* the Arabic beside it */
+  }
+  .reader { max-width: calc(var(--ar-size) * 30 + 2 * var(--gut)); margin-inline: auto; padding-left: var(--gut); padding-right: var(--gut); }
+  [data-tr] .reader { max-width: calc(var(--tr-col) + var(--colgap) + var(--ar-col) + 2 * var(--gut)); }
+  /* Nazira: a page a little narrower than a verse line, like a mushaf's text block. */
+  [data-nazira][data-mode="read"] .reader { max-width: calc(var(--ar-size) * 28 + 2 * var(--gut)); }
+  .stage { max-width: calc(var(--ar-size) * 28); }
   /* The fixed parts span the middle, 24px in from the sidebars. */
   .listen { left: var(--L); right: var(--R); }
   .follow-chip { left: calc(var(--L) + (100vw - var(--L) - var(--R)) / 2); }
@@ -744,12 +795,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 @media (min-width: 1680px) { :root { --cw: 300px; --pw: 320px; } }
 @media (min-width: 2240px) {
   :root { --cw: 320px; --pw: 360px; }
-  [data-tr] .reader { max-width: min(100%, 1700px); }
+  [data-tr][data-trc="2"] .reader { max-width: calc(var(--tr-size) * 60 + 32px + var(--colgap) + var(--ar-col) + 2 * var(--gut)); }
+  [data-tr][data-trc="3"] .reader { max-width: calc(var(--tr-size) * 90 + 64px + var(--colgap) + var(--ar-col) + 2 * var(--gut)); }
 }
-/* Translations beside the Arabic once the middle is 640px wide (Arabic ~1.15fr, translations
-   1fr, 48px apart); narrower, they go under it. */
+/* Translations beside the Arabic once the middle is 640px wide; narrower, they go under it.
+   The translation column takes up to ~72 characters (--tr-col) but never more than 46% of the
+   verse; the Arabic takes the rest. */
 @container (min-width: 640px) {
-  [data-tr] .verse { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 0 48px; align-items: start; padding: 16px 20px; margin: 2px -20px; }
+  [data-tr] .verse { display: grid; grid-template-columns: min(var(--tr-col), 46%) minmax(0, 1fr); gap: 0 var(--colgap); align-items: start; padding: 16px 20px; margin: 2px -20px; }
   [data-tr] .verse .v-ar { grid-column: 2; grid-row: 1 / span 2; }
   [data-tr] .verse .v-tr { grid-column: 1; grid-row: 1; padding-top: 0.55em; }
   [data-tr] .verse .v-wm { grid-column: 1; grid-row: 2; }
@@ -761,8 +814,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 }
 /* Very wide: several translations side by side, each its own column next to the Arabic. */
 @media (min-width: 2240px) {
-  [data-tr][data-trc="2"] .verse { grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr); }
-  [data-tr][data-trc="3"] .verse { grid-template-columns: minmax(0, 3fr) minmax(0, 1.15fr); }
+  [data-tr][data-trc="2"] .verse { grid-template-columns: min(calc(var(--tr-size) * 60 + 32px), 62%) minmax(0, 1fr); }
+  [data-tr][data-trc="3"] .verse { grid-template-columns: min(calc(var(--tr-size) * 90 + 64px), 70%) minmax(0, 1fr); }
   [data-tr][data-trc="2"] .v-tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
   [data-tr][data-trc="3"] .v-tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
   [data-tr][data-trc] .v-tr .tr + .tr { margin-top: 0; }
@@ -925,11 +978,5 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .imp-help li { margin-bottom: 4px; }
 .imp-choices { display: flex; flex-wrap: wrap; gap: 10px; }
 .imp-choices[hidden] { display: none; }
-.car-choices button { gap: 12px; padding-top: 8px; padding-bottom: 8px; }
-.car-choices .nm { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.car-choices .car-hint { font-size: 13px; font-weight: 400; color: var(--ink2); line-height: 1.35; }
-.car-choices .tick { flex: none; }
 #settings-sheet .install-grp:has(> .install-row[hidden]) { display: none; }
-.car-choices b { font-weight: 500; }
-.car-choices [aria-checked="true"] b { font-weight: 650; }
 #settings-sheet .install-grp, #settings-sheet .transfer-grp { margin-top: 20px; }

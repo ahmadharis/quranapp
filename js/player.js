@@ -174,26 +174,17 @@ class StreamBackend {
     this.loader = loader;
     this.session = 0;
     this.segments = [];
-    this.live = false; // "classic" car controls: the stream looks live (duration Infinity)
     this.ms = null;
   }
 
-  // Live (infinite duration): browsers then offer no seeking of their own — Chrome adds
-  // default ±10 s lock-screen/car actions to seekable media and they can't be removed
-  // (Chromium issue 349529659). Our seeking only sets currentTime inside what is buffered, or
-  // rebuilds the stream, so it works either way.
-  setLive(on) {
-    this.live = on;
-    this.#applyDuration();
-  }
+  // A finite duration: the end of what is buffered (appends extend it). Left alone, MSE
+  // reports Infinity, a live stream, for this audio.
   #applyDuration() {
     const ms = this.ms;
     if (!ms || ms.readyState !== "open") return;
     if ([...ms.sourceBuffers].some((b) => b.updating)) return; // retried after the next append
     try {
-      if (this.live && ms.duration !== Infinity) ms.duration = Infinity;
-      else if (!this.live && ms.duration === Infinity) {
-        // Back to a finite stream: the end of what is buffered (appends extend it).
+      if (ms.duration === Infinity) {
         const ends = [...ms.sourceBuffers].map((b) => (b.buffered.length ? b.buffered.end(b.buffered.length - 1) : 0));
         ms.duration = Math.max(0, ...ends) || 0;
       }
@@ -322,7 +313,7 @@ class StreamBackend {
         this.segments = this.segments.filter((s) => s.end > keepFrom);
       }
     }
-    if (alive() && !pos && !sb.updating) ms.endOfStream(); // the end of the Quran (the duration becomes finite then)
+    if (alive() && !pos && !sb.updating) ms.endOfStream();
   }
 }
 
@@ -460,7 +451,7 @@ class ChunkBackend {
       const bytes = dropLast ? data.bytes.subarray(0, data.bytes.length - data.lastFrameBytes) : data.bytes;
       const seconds = ((data.frames - (dropLast ? 1 : 0)) * data.samplesPerFrame) / data.sampleRate;
       parts.push(bytes);
-      segments.push({ ...pos, start: t, end: t + seconds, fileMs: 0 });
+      segments.push({ ...pos, start: t, end: t + seconds, fileMs: primingMs(data) });
       t += seconds;
       pos = nextVerse(pos);
     }
@@ -472,12 +463,21 @@ class ChunkBackend {
 
 // Safari (any WebKit browser: iPhone, iPad, Mac) gets chunks: its MSE drops MP3 appends that
 // are trimmed by an append window or a negative offset, and is unreliable in the background.
-function prefersChunks() {
+// Safari, and every browser on iPhone and iPad (all WebKit).
+function isWebKit() {
   const ua = navigator.userAgent;
   const iOS = /iP(hone|ad|od)/.test(ua) || (ua.includes("Mac") && navigator.maxTouchPoints > 1);
   const safari = /AppleWebKit/.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|FxiOS|Android/.test(ua);
-  return iOS || safari || !window.MediaSource?.isTypeSupported?.("audio/mpeg");
+  return iOS || safari;
 }
+function prefersChunks() {
+  return isWebKit() || !window.MediaSource?.isTypeSupported?.("audio/mpeg");
+}
+// WebKit plays a chunk without the start of each MP3 (its priming), so what is heard runs ahead
+// of the file: by the decoder delay, 529 samples, and by about 1,843 samples for 32 kHz files
+// (Aiman Almaliki). Measured in Safari 26 on a Mac (2026-11-01). Other engines play it whole.
+const WEBKIT_PRIMING = isWebKit();
+const primingMs = (data) => (WEBKIT_PRIMING ? ((data.sampleRate === 32000 ? 1843 : 529) / data.sampleRate) * 1000 : 0);
 
 // Events: "verse" (detail: {ch, v}) when the recited verse changes; "state" when playing,
 // paused or buffering changes.
@@ -493,8 +493,6 @@ export class Player extends EventTarget {
     // Optional hook: (segment {ch, v}, msInVerseFile) => {duration, position} in ms of the
     // chapter, so the lock screen and car show one track per chapter.
     this.timeline = null;
-    // Lock screen / car progress (setPositionState). Off for "classic" car controls.
-    this.positionState = true;
     this.lastMeta = ""; // metadata is only re-sent when it actually changes
     this.pendingSeek = null; // {ch, v, ms}: a seek to apply once that verse plays
     this.#useBackend(prefersChunks());
@@ -539,7 +537,6 @@ export class Player extends EventTarget {
   #useBackend(chunks) {
     this.loader = new VerseLoader({ measureEdges: !chunks });
     this.backend = chunks ? new ChunkBackend(this.audio, this.loader) : new StreamBackend(this.audio, this.loader);
-    this.backend.setLive?.(this.carLive === true);
     this.backend.onLoadError = () => {
       if (this.loadError) return;
       this.loadError = true;
@@ -682,7 +679,7 @@ export class Player extends EventTarget {
     }
     // The lock screen and car show progress: through the whole chapter when the `timeline`
     // hook can place this moment in it (one track per chapter), else through the verse.
-    if (this.positionState) try {
+    try {
       const ms = (t - seg.start) * 1000 + seg.fileMs;
       const tl = this.timeline?.(seg, ms);
       const duration = tl ? tl.duration / 1000 : seg.end - seg.start;
@@ -724,23 +721,18 @@ export class Player extends EventTarget {
     this.dispatchEvent(new Event("state"));
   }
 
-  // Car / lock-screen controls (see applyCarControls in app.js). "classic" and "nobar": on MSE
-  // a live stream, which the browser adds no ±10 s seeking to; "nobar" also clears the
-  // progress (positionState). "scrubber": a normal stream.
-  setCarControls(mode) {
-    this.carLive = mode === "classic" || mode === "nobar";
-    this.positionState = mode !== "nobar";
-    this.backend.setLive?.(this.carLive);
-    if (!this.positionState) {
-      try {
-        navigator.mediaSession?.setPositionState?.();
-      } catch {}
-    }
-  }
-
   // Re-sends the now-playing details, e.g. once chapter artwork has been drawn.
   refreshMetadata() {
     this.#updateMetadata();
+  }
+
+  // Sends everything again, unchanged or not: after Android froze the page in the background
+  // (paused), Chrome dropped its lock-screen / car session, and it comes back with the page.
+  reannounce() {
+    if (!this.started) return;
+    this.lastMeta = "";
+    this.#updateMetadata();
+    this.#emitState();
   }
 
   #updateMetadata() {

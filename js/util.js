@@ -167,3 +167,38 @@ export function markFootnotes(textHtml, notes) {
 }
 
 export const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+// ---------- turning to another chapter ----------
+// A short, direction-aware entrance for the chapter that just replaced the one on screen. The
+// Quran reads right to left, so the next chapter comes in from the left (the page moves right,
+// as when turning a mushaf's page, and as the swipe does) and the previous one from the right.
+// kind: "slide" (a neighbour chosen by the person) or "fade" (recitation running on, a far
+// jump). It runs after the DOM has already changed, on transform and opacity only, so it
+// never delays the audio, the scroll to the verse or the word highlighting, and never moves
+// the layout. Reduced motion: a slide becomes the plain fade.
+const TURN_PX = 28;
+export function pageTurn(el, kind, d = 1) {
+  if (!el || !kind || typeof el.animate !== "function") return null;
+  el.getAnimations?.().forEach((a) => a.id === "turn" && a.cancel());
+  const slide = kind === "slide" && !reducedMotion.matches;
+  const frames = slide
+    ? [{ opacity: 0, transform: `translateX(${d > 0 ? -TURN_PX : TURN_PX}px)` }, { opacity: 1, transform: "none" }]
+    : [{ opacity: 0.25 }, { opacity: 1 }];
+  const anim = el.animate(frames, { duration: slide ? 260 : 220, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" });
+  anim.id = "turn";
+  return anim;
+}
+// Which turn a change of chapter gets. A hint ({to, kind, d}) set just before the change by
+// whatever caused it (swipe, ⏮/⏭, "Continue to …", recitation) wins while it is fresh;
+// otherwise a neighbouring chapter slides and a far one fades.
+let turnHint = null;
+export function hintTurn(to, kind, d) {
+  turnHint = { to, kind, d, at: Date.now() };
+}
+export function turnFor(from, to) {
+  if (!from || from === to) return null;
+  const hint = turnHint;
+  turnHint = null;
+  if (hint && hint.to === to && Date.now() - hint.at < 1500) return { kind: hint.kind, d: hint.d ?? Math.sign(to - from) };
+  return { kind: Math.abs(to - from) === 1 ? "slide" : "fade", d: Math.sign(to - from) };
+}

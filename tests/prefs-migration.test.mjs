@@ -2,8 +2,8 @@
 // 1. Preferences exactly as 1.1.0 stores them (no `schema` field) and as 1.1.1 stores them
 //    (schema 2), with a non-default value everywhere plus bookmarks and a resume point, are
 //    loaded by this version: every value and bookmark is unchanged, and the stored prefs gain
-//    only the current `schema`, `lastAt` (0: not known before 1.2.0) and `carControls`
-//    ("scrubber", the behavior before 1.2.1).
+//    only the current `schema`, `lastAt` (0: not known before 1.2.0) and `introLang` ("en"). Schema-4 prefs
+//    (1.2.1–1.3.x) lose only `carControls` (the experiments ended in 1.4.0).
 // 2. A service-worker update (cache v1 -> v2, served by a small server of its own) leaves
 //    localStorage and IndexedDB intact.
 import { createServer } from "node:http";
@@ -58,7 +58,7 @@ const sameAsOld = (label, got) => {
 const b = await launch("chromium");
 try {
   // 1. Loading 1.1.0 prefs.
-  for (const [from, seed, viewport] of [["1.1.0", OLD, { width: 402, height: 874 }], ["1.1.1", { ...OLD, schema: 2 }, { width: 1920, height: 1080 }]]) {
+  for (const [from, seed, viewport] of [["1.1.0", OLD, { width: 402, height: 874 }], ["1.1.1", { ...OLD, schema: 2 }, { width: 1920, height: 1080 }], ["1.3.0", { ...OLD, schema: 4, lastAt: 0, carControls: "nobar" }, { width: 1440, height: 900 }]]) {
     const ctx = await context(b, { prefs: seed, viewport, colorScheme: "light" });
     const { page, errors } = await open(ctx, "");
     await page.waitForTimeout(800);
@@ -69,8 +69,9 @@ try {
     sameAsOld(`${label} stored`, s);
     t.check(SCHEMA >= 3 && s?.schema === SCHEMA, `${label}: stored schema ${s?.schema}, expected ${SCHEMA}`);
     t.check(s?.lastAt === 0, `${label}: lastAt ${s?.lastAt}, expected 0`);
-    t.check(s?.carControls === "scrubber", `${label}: carControls ${s?.carControls}, expected the old behavior "scrubber"`);
-    const extra = Object.keys(s ?? {}).filter((k) => !(k in OLD) && !["schema", "lastAt", "carControls"].includes(k));
+    t.check(s?.introLang === "en", `${label}: introLang ${s?.introLang}, expected "en"`);
+    t.check(!("carControls" in (s ?? {})), `${label}: carControls still stored (${s?.carControls})`);
+    const extra = Object.keys(s ?? {}).filter((k) => !(k in OLD) && !["schema", "lastAt", "introLang"].includes(k));
     t.check(!extra.length, `${label}: unexpected stored keys ${extra}`);
     const ui = await page.evaluate(() => ({
       hash: location.hash,
